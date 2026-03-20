@@ -1,0 +1,13 @@
+[project]
+name = "pico-local-bridge"
+version = "0.1.0"
+description = "LiveKit local bridge: streams camera and bridges control commands to Pico serial"
+requires-python = ">=3.10"
+dependencies = [
+    "livekit>=0.18",
+    "livekit-api>=0.8",
+    "opencv-python>=4.8",
+    "pyserial>=3.5",
+    "python-dotenv>=1.0",
+    "numpy>=1.24",
+]

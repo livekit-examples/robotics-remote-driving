@@ -1,0 +1,13 @@
+[project]
+name = "pico-livekit-controller"
+version = "0.1.0"
+description = "LiveKit remote controller: keyboard input + video viewer for Pico driving"
+requires-python = ">=3.10"
+dependencies = [
+    "livekit>=0.18",
+    "livekit-api>=0.8",
+    "opencv-python>=4.8",
+    "python-dotenv>=1.0",
+    "numpy>=1.24",
+    "pygame>=2.5",
+]
