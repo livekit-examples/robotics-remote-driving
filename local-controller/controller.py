@@ -93,6 +93,10 @@ def main():
                             held.discard(btn)
                             ser.write(encode_release(btn))
 
+            # Re-send held presses to prevent Pico 500ms watchdog release
+            for btn in held:
+                ser.write(encode_press(btn))
+
             # Draw
             screen.fill((30, 30, 30))
 
