@@ -24,7 +24,7 @@ UP, DOWN, LEFT, RIGHT, SPEED, BRAKE = 16, 17, 18, 19, 20, 21
 VALID_BUTTONS = {UP, DOWN, LEFT, RIGHT, SPEED, BRAKE}
 RELEASE_ALL = 0x00
 
-WIDTH, HEIGHT, FPS = 640, 480, 30
+WIDTH, HEIGHT, FPS = 1280, 720, 30
 KEEPALIVE_INTERVAL = 0.3  # must be < 500ms Pico watchdog
 
 BUTTON_NAMES = {
@@ -133,6 +133,7 @@ async def main():
             if not ret:
                 await asyncio.sleep(0.01)
                 continue
+            frame = cv2.flip(frame, -1)
             rgba = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
             video_frame = rtc.VideoFrame(
                 WIDTH, HEIGHT, rtc.VideoBufferType.RGBA, rgba.tobytes()

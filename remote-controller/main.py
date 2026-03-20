@@ -39,7 +39,7 @@ KEY_LABELS = {
     RIGHT: "D", SPEED: "Tab", BRAKE: "Space",
 }
 
-WIDTH, HEIGHT = 640, 480
+WIDTH, HEIGHT = 1280, 720
 
 
 async def main():
