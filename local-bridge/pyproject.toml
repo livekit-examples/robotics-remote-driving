@@ -10,6 +10,7 @@ dependencies = [
     "pyserial>=3.5",
     "python-dotenv>=1.0",
     "numpy>=1.24",
+    "sounddevice>=0.4",
     "car-protocol",
 ]
 
