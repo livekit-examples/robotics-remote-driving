@@ -3,8 +3,9 @@
 import asyncio
 import logging
 
-from livekit.agents import Agent, get_job_context
-from livekit.agents.llm import function_tool
+from livekit import rtc
+from livekit.agents import Agent, ChatContext, ChatMessage, get_job_context
+from livekit.agents.llm import ImageContent, function_tool
 
 from car_protocol import UP, DOWN, LEFT, RIGHT, SPEED, BRAKE, NAME_TO_PIN
 from car_protocol.commands import press_command, release_command, release_all_command
@@ -14,10 +15,14 @@ logger = logging.getLogger("remote-agent")
 
 class CarAgent(Agent):
     def __init__(self) -> None:
+        self._latest_frame = None
+        self._video_stream = None
+        self._tasks = []
         super().__init__(
             instructions=(
                 "You are an AI driver controlling a remote-controlled car via voice commands. "
-                "You can see through the car's onboard camera with live video input.\n\n"
+                "You can see through the car's onboard camera — a snapshot is attached to every "
+                "message you receive.\n\n"
                 "Available controls (press-and-hold style):\n"
                 "- drive_forward / drive_backward — start moving\n"
                 "- turn_left / turn_right — steer\n"
@@ -35,6 +40,45 @@ class CarAgent(Agent):
                 "until you find it, then stop."
             ),
         )
+
+    async def on_enter(self):
+        room = get_job_context().room
+
+        for participant in room.remote_participants.values():
+            for publication in participant.track_publications.values():
+                if publication.track and publication.track.kind == rtc.TrackKind.KIND_VIDEO:
+                    self._create_video_stream(publication.track)
+                    return
+
+        @room.on("track_subscribed")
+        def on_track_subscribed(
+            track: rtc.Track,
+            publication: rtc.RemoteTrackPublication,
+            participant: rtc.RemoteParticipant,
+        ):
+            if track.kind == rtc.TrackKind.KIND_VIDEO:
+                self._create_video_stream(track)
+
+    async def on_user_turn_completed(
+        self, turn_ctx: ChatContext, new_message: ChatMessage
+    ) -> None:
+        if self._latest_frame:
+            new_message.content.append(ImageContent(image=self._latest_frame))
+
+    def _create_video_stream(self, track: rtc.Track):
+        if self._video_stream is not None:
+            self._video_stream.close()
+
+        self._video_stream = rtc.VideoStream(track)
+
+        async def read_stream():
+            async for event in self._video_stream:
+                self._latest_frame = event.frame
+
+        task = asyncio.create_task(read_stream())
+        task.add_done_callback(lambda t: self._tasks.remove(t))
+        self._tasks.append(task)
+        logger.info("Subscribed to camera video stream")
 
     async def _send(self, payload: bytes, topic: str):
         room = get_job_context().room
