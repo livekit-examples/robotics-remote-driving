@@ -1,0 +1,5 @@
+[project]
+name = "car-protocol"
+version = "0.1.0"
+description = "Shared protocol constants and helpers for Pico car control"
+requires-python = ">=3.10"

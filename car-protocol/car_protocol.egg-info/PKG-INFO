@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: car-protocol
+Version: 0.1.0
+Summary: Shared protocol constants and helpers for Pico car control
+Requires-Python: >=3.10

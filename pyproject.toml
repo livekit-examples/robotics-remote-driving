@@ -5,4 +5,10 @@ description = "LiveKit remote control workspace for Pico driving"
 requires-python = ">=3.10"
 
 [tool.uv.workspace]
-members = ["local-bridge", "remote-controller", "local-controller"]
+members = [
+    "car-protocol",
+    "local-bridge",
+    "remote-controller",
+    "local-controller",
+    "remote-agent",
+]
