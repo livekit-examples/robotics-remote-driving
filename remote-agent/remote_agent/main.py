@@ -1,0 +1,58 @@
+"""LiveKit AI agent server setup and session entrypoint."""
+
+import logging
+from pathlib import Path
+
+from dotenv import load_dotenv
+from livekit.agents import (
+    AgentServer,
+    AgentSession,
+    JobContext,
+    JobProcess,
+    cli,
+    room_io,
+)
+from livekit.plugins import google, silero
+
+from remote_agent.car_agent import CarAgent
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / ".env.local")
+
+logger = logging.getLogger("remote-agent")
+logger.setLevel(logging.INFO)
+
+server = AgentServer()
+
+
+def prewarm(proc: JobProcess):
+    proc.userdata["vad"] = silero.VAD.load()
+
+
+server.setup_fnc = prewarm
+
+
+@server.rtc_session(agent_name="remote-agent")
+async def entrypoint(ctx: JobContext):
+    session = AgentSession(
+        llm=google.beta.realtime.RealtimeModel(
+            model="gemini-2.5-flash-native-audio-preview-12-2025",
+            voice="Puck",
+            proactivity=True,
+            enable_affective_dialog=True,
+        ),
+        vad=ctx.proc.userdata["vad"],
+    )
+
+    await session.start(
+        room=ctx.room,
+        agent=CarAgent(),
+        room_options=room_io.RoomOptions(
+            video_input=True,
+        ),
+    )
+    await ctx.connect()
+    await session.generate_reply()
+
+
+if __name__ == "__main__":
+    cli.run_app(server)

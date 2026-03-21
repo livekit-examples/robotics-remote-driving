@@ -1,0 +1,16 @@
+[project]
+name = "remote-agent"
+version = "0.1.0"
+description = "LiveKit AI agent: sees through the car camera and drives via voice commands"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "livekit-agents>=1.0",
+    "livekit-plugins-google>=1.0",
+    "livekit-plugins-silero>=1.0",
+    "python-dotenv>=1.0",
+    "car-protocol",
+]
+
+[tool.uv.sources]
+car-protocol = { workspace = true }
