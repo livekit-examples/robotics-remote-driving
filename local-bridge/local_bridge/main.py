@@ -42,9 +42,9 @@ async def main():
     await room.connect(url, token)
     logger.info("Connected to LiveKit room")
 
+    # Audio first so mic pump task is running before other bridges add event loop load
     await audio.start()
-    await video.start()
-    await data.start()
+    await asyncio.gather(video.start(), data.start())
 
     try:
         await asyncio.gather(video.run(), data.run())

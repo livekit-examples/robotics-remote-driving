@@ -29,28 +29,37 @@ class VideoBridge:
         await self._room.local_participant.publish_track(track, options)
         logger.info("Published video track")
 
-        self._cap = cv2.VideoCapture(0)
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
-        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
-        if not self._cap.isOpened():
+        loop = asyncio.get_running_loop()
+        self._cap = await loop.run_in_executor(None, self._open_camera)
+        logger.info("Camera opened")
+
+    @staticmethod
+    def _open_camera() -> cv2.VideoCapture:
+        cap = cv2.VideoCapture(0)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, WIDTH)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
+        if not cap.isOpened():
             raise RuntimeError("Failed to open camera")
+        return cap
+
+    def _read_and_convert(self) -> rtc.VideoFrame | None:
+        """Read a frame from the camera and convert to RGBA. Runs in executor."""
+        ret, frame = self._cap.read()
+        if not ret:
+            return None
+        frame = cv2.flip(frame, -1)
+        rgba = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
+        return rtc.VideoFrame(WIDTH, HEIGHT, rtc.VideoBufferType.RGBA, rgba.tobytes())
 
     async def run(self):
         """Capture frames from camera and publish to LiveKit."""
         loop = asyncio.get_running_loop()
-        cap = self._cap
         while True:
-            ret, frame = await loop.run_in_executor(None, cap.read)
-            if not ret:
+            video_frame = await loop.run_in_executor(None, self._read_and_convert)
+            if video_frame is None:
                 await asyncio.sleep(0.01)
                 continue
-            frame = cv2.flip(frame, -1)
-            rgba = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
-            video_frame = rtc.VideoFrame(
-                WIDTH, HEIGHT, rtc.VideoBufferType.RGBA, rgba.tobytes()
-            )
             self._source.capture_frame(video_frame)
-            await asyncio.sleep(1.0 / FPS)
 
     def close(self):
         """Release camera."""
