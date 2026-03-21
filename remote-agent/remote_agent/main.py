@@ -11,9 +11,8 @@ from livekit.agents import (
     JobContext,
     JobProcess,
     cli,
-    inference,
 )
-from livekit.plugins import silero, xai
+from livekit.plugins import deepgram, elevenlabs, silero, xai
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from remote_agent.car_agent import CarAgent
@@ -36,13 +35,9 @@ server.setup_fnc = prewarm
 @server.rtc_session(agent_name="remote-agent")
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
-        stt="deepgram/nova-3",
+        stt=deepgram.STT(),
         llm=xai.responses.LLM(),
-        tts=inference.TTS(
-            model="elevenlabs/eleven_turbo_v2",
-            voice="N2lVS1w4EtoT3dr4eOWO",
-            language="en",
-        ),
+        tts=elevenlabs.TTS(voice_id="N2lVS1w4EtoT3dr4eOWO"),
         vad=ctx.proc.userdata["vad"],
         turn_detection=MultilingualModel(),
     )
