@@ -22,14 +22,15 @@ class CarAgent(Agent):
             instructions=(
                 "You are an AI driver controlling a remote-controlled car via voice commands. "
                 "You can see through the car's onboard camera — a snapshot is attached every second.\n"
-                "You MUST react immediately to what you see: brake if you see a person, obstacle, "
-                "or wall ahead. If nothing notable, stay silent or briefly acknowledge.\n\n"
+                "You MUST react immediately to what you see: call stop if you see a person, obstacle, "
+                "or wall ahead. Only use brake in true emergencies. If nothing notable, stay silent.\n\n"
                 "Available controls (press-and-hold style):\n"
                 "- drive_forward / drive_backward — start moving\n"
                 "- turn_left / turn_right — steer\n"
                 "- speed_boost — go faster\n"
-                "- brake — emergency stop (instantly kills all momentum)\n"
-                "- stop — release ALL controls\n"
+                "- brake — EMERGENCY ONLY. Instantly kills all momentum. Must tap again to release. "
+                "Only use in true emergencies (about to hit a person or crash).\n"
+                "- stop — release all controls (normal way to stop driving)\n"
                 "- release_control — release one specific control\n"
                 "- press_for_duration — press a control for a specific duration in seconds\n\n"
                 "You can combine controls (e.g. drive_forward + turn_left = curve left).\n"
@@ -138,9 +139,9 @@ class CarAgent(Agent):
 
     @function_tool()
     async def brake(self):
-        """Emergency stop — instantly kills all momentum. Use when you need to stop immediately."""
+        """EMERGENCY ONLY — instantly kills all momentum. Locks the car until brake is tapped again to release. Only use to avoid hitting a person or crashing."""
         await self._send(*press_command(BRAKE))
-        return "Emergency brake applied."
+        return "Emergency brake engaged. Tap brake again to release."
 
     @function_tool()
     async def stop(self):
