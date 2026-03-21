@@ -8,7 +8,7 @@ import serial
 
 from car_protocol import UP, DOWN, LEFT, RIGHT, SPEED, BRAKE
 from car_protocol.serial import encode_press, encode_release, find_pico_port, RELEASE_ALL
-from pico_controller.ui import draw_status
+from local_controller.ui import draw_status
 
 # Key-to-button mapping (pygame-specific)
 KEY_MAP = {

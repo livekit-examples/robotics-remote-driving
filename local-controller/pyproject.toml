@@ -13,4 +13,4 @@ dependencies = [
 car-protocol = { workspace = true }
 
 [project.scripts]
-pico-controller = "pico_controller.main:main"
+pico-controller = "local_controller.main:main"

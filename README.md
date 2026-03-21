@@ -44,7 +44,7 @@ car-protocol/car_protocol/      # Shared protocol (zero external deps)
     serial.py                   #   Serial encoding + port detection
     commands.py                 #   LiveKit data channel command builders
 
-local-controller/pico_controller/
+local-controller/local_controller/
     main.py                     #   Pygame event loop + serial I/O
     ui.py                       #   Button status rendering
 
