@@ -48,6 +48,7 @@ async def entrypoint(ctx: JobContext):
     )
 
     agent = CarAgent()
+    agent._session = session
     await session.start(
         room=ctx.room,
         agent=agent,
@@ -55,7 +56,7 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect()
     await session.generate_reply()
 
-    asyncio.create_task(agent.vision_loop(session))
+    asyncio.create_task(agent._vision_loop())
 
 
 if __name__ == "__main__":

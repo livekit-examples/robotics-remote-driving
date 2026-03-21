@@ -18,12 +18,13 @@ class CarAgent(Agent):
         self._latest_frame = None
         self._video_stream = None
         self._tasks = []
+        self._watch_enabled = False
+        self._watch_instruction: str | None = None
+        self._session = None
         super().__init__(
             instructions=(
                 "You are an AI driver controlling a remote-controlled car via voice commands. "
-                "You can see through the car's onboard camera — a snapshot is attached every second.\n"
-                "You MUST react immediately to what you see: call stop if you see a person, obstacle, "
-                "or wall ahead. Only use brake in true emergencies. If nothing notable, stay silent.\n\n"
+                "You can see through the car's onboard camera.\n\n"
                 "Available controls (press-and-hold style):\n"
                 "- drive_forward / drive_backward — start moving\n"
                 "- turn_left / turn_right — steer\n"
@@ -32,14 +33,18 @@ class CarAgent(Agent):
                 "Only use in true emergencies (about to hit a person or crash).\n"
                 "- stop — release all controls (normal way to stop driving)\n"
                 "- release_control — release one specific control\n"
-                "- press_for_duration — press a control for a specific duration in seconds\n\n"
+                "- press_for_duration — press a control for a specific duration in seconds\n"
+                "- get_camera_frame — look at a snapshot from the camera\n"
+                "- watch_for — start watching the camera every second for a condition, "
+                "then act when you see it\n"
+                "- stop_watching — stop the camera watch loop\n\n"
                 "You can combine controls (e.g. drive_forward + turn_left = curve left).\n"
                 "Use press_for_duration for precise maneuvers. Call it multiple times in parallel "
                 "to combine timed controls (e.g. forward 2s + left 0.5s = slight left curve).\n"
                 "Always describe what you see in the camera when you drive.\n"
                 "Always call stop when finished driving.\n"
-                "When asked to find something, drive around while describing what you see "
-                "until you find it, then stop."
+                "When the user asks you to do something when you see something "
+                "(e.g. 'stop when you see a person'), use watch_for to start monitoring."
             ),
         )
 
@@ -67,24 +72,24 @@ class CarAgent(Agent):
         if self._latest_frame:
             new_message.content.append(ImageContent(image=self._latest_frame))
 
-    async def vision_loop(self, session):
-        """Periodically send the latest camera frame to the LLM for proactive reactions."""
+    async def _vision_loop(self):
+        """Periodically check camera while watch is enabled."""
         while True:
             await asyncio.sleep(1.0)
-            if self._latest_frame is None:
+            if not self._watch_enabled or self._latest_frame is None or self._session is None:
                 continue
             chat_ctx = self.chat_ctx.copy()
             chat_ctx.add_message(
                 role="user",
                 content=[
-                    "Camera snapshot — react ONLY if you see something requiring action "
-                    "(person, obstacle, wall). Use brake or stop tools if needed. "
-                    "If nothing notable, do not respond.",
+                    f"Camera snapshot. You are watching for: {self._watch_instruction}\n"
+                    "If the condition is met, stop watching (call stop_watching) and take the "
+                    "requested action. If not met yet, do not respond.",
                     ImageContent(image=self._latest_frame),
                 ],
             )
             await self.update_chat_ctx(chat_ctx)
-            await session.generate_reply()
+            await self._session.generate_reply()
 
     def _create_video_stream(self, track: rtc.Track):
         if self._video_stream is not None:
@@ -106,6 +111,42 @@ class CarAgent(Agent):
         await room.local_participant.publish_data(payload, topic=topic)
 
     # ── function tools (callable by the LLM) ─────────────────────────
+
+    @function_tool()
+    async def get_camera_frame(self):
+        """Look at the current camera snapshot. Returns the latest frame from the car's onboard camera."""
+        if self._latest_frame is None:
+            return "No camera frame available yet."
+        chat_ctx = self.chat_ctx.copy()
+        chat_ctx.add_message(
+            role="user",
+            content=["Current camera view:", ImageContent(image=self._latest_frame)],
+        )
+        await self.update_chat_ctx(chat_ctx)
+        return "Camera frame attached. Describe what you see."
+
+    @function_tool()
+    async def watch_for(self, condition: str):
+        """Start watching the camera every second for a specific condition.
+
+        When the condition is detected, you will automatically act on it and stop watching.
+        Only one watch can be active at a time.
+
+        Args:
+            condition: What to watch for and what action to take, e.g. 'stop when you see a person'.
+        """
+        self._watch_enabled = True
+        self._watch_instruction = condition
+        logger.info(f"Watch started: {condition}")
+        return f"Now watching for: {condition}. I'll check the camera every second."
+
+    @function_tool()
+    async def stop_watching(self):
+        """Stop the camera watch loop."""
+        self._watch_enabled = False
+        self._watch_instruction = None
+        logger.info("Watch stopped")
+        return "Stopped watching."
 
     @function_tool()
     async def drive_forward(self):
