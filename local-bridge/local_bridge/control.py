@@ -36,21 +36,27 @@ class DataBridge:
             if action == "release_all":
                 self._ser.write(bytes([RELEASE_ALL]))
                 self._held.clear()
-                logger.info("Release all")
             elif action == "press":
                 btn = cmd.get("button")
                 if btn in ALL_BUTTONS:
                     self._ser.write(encode_press(btn))
                     self._held.add(btn)
-                    logger.debug(f"Press {BUTTON_NAMES.get(btn, btn)}")
             elif action == "release":
                 btn = cmd.get("button")
                 if btn in ALL_BUTTONS:
                     self._ser.write(encode_release(btn))
                     self._held.discard(btn)
-                    logger.debug(f"Release {BUTTON_NAMES.get(btn, btn)}")
+
+            self._log_state()
 
         logger.info("Data bridge started")
+
+    def _log_state(self):
+        if self._held:
+            names = sorted(BUTTON_NAMES.get(b, str(b)) for b in self._held)
+            logger.info(f"Buttons held: {', '.join(names)}")
+        else:
+            logger.info("Buttons held: (none)")
 
     async def run(self):
         """Re-send held button presses to prevent Pico 500ms watchdog release."""

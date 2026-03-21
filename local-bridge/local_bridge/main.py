@@ -41,6 +41,13 @@ async def main(agent_name: str | None = None):
     token = token_builder.to_jwt()
 
     room = rtc.Room()
+
+    # Suppress "no callback attached" warnings for agent text streams
+    def _noop_stream_handler(reader, participant_identity):
+        pass
+    room.register_text_stream_handler("lk.agent.events", _noop_stream_handler)
+    room.register_text_stream_handler("lk.transcription", _noop_stream_handler)
+
     audio = AudioBridge(room)
     video = VideoBridge(room)
     data = DataBridge(room, serial_port)
