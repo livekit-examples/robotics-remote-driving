@@ -12,7 +12,7 @@ from livekit.agents import (
     JobProcess,
     cli,
 )
-from livekit.plugins import deepgram, elevenlabs, openai, silero
+from livekit.plugins import deepgram, elevenlabs, google, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from remote_agent.car_agent import CarAgent
@@ -36,7 +36,7 @@ server.setup_fnc = prewarm
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt=deepgram.STT(),
-        llm=openai.LLM(),
+        llm=google.LLM(model="google/gemini-3.1-pro-preview"),
         tts=elevenlabs.TTS(voice_id="N2lVS1w4EtoT3dr4eOWO"),
         vad=ctx.proc.userdata["vad"],
         turn_detection=MultilingualModel(),

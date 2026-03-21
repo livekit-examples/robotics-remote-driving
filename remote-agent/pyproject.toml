@@ -5,7 +5,8 @@ description = "LiveKit AI agent: sees through the car camera and drives via voic
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "livekit-agents[images,openai]~=1.4",
+    "livekit-agents[images]~=1.4",
+    "livekit-plugins-google>=1.0",
     "livekit-plugins-deepgram>=1.0",
     "livekit-plugins-elevenlabs>=1.0",
     "livekit-plugins-silero>=1.0",
