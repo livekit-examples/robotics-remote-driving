@@ -11,7 +11,8 @@ from livekit.agents import (
     JobProcess,
     cli,
 )
-from livekit.plugins import openai, silero
+from livekit.plugins import silero
+from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from remote_agent.car_agent import CarAgent
 
@@ -33,8 +34,11 @@ server.setup_fnc = prewarm
 @server.rtc_session(agent_name="remote-agent")
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
-        llm=openai.realtime.RealtimeModel(voice="coral"),
+        stt="deepgram/nova-3",
+        llm="openai/gpt-4.1-mini",
+        tts="cartesia/sonic-3",
         vad=ctx.proc.userdata["vad"],
+        turn_detection=MultilingualModel(),
     )
 
     await session.start(
