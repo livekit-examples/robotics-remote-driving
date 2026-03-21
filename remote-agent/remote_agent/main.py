@@ -36,7 +36,7 @@ server.setup_fnc = prewarm
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt=deepgram.STT(),
-        llm=google.LLM(model="google/gemini-3.1-pro-preview"),
+        llm=google.LLM(model="gemini-3.1-pro-preview"),
         tts=elevenlabs.TTS(voice_id="N2lVS1w4EtoT3dr4eOWO"),
         vad=ctx.proc.userdata["vad"],
         turn_detection=MultilingualModel(),
