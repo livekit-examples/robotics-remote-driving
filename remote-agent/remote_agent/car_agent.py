@@ -75,7 +75,7 @@ class CarAgent(Agent):
     async def _vision_loop(self):
         """Periodically check camera while watch is enabled."""
         while True:
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(0.5)
             if not self._watch_enabled or self._latest_frame is None or self._session is None:
                 continue
             chat_ctx = self.chat_ctx.copy()
