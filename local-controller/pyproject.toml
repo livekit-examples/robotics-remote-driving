@@ -1,5 +1,5 @@
 [project]
-name = "pico-controller"
+name = "local-controller"
 version = "0.1.0"
 description = "Keyboard controller for Pico remote over USB serial"
 requires-python = ">=3.10"
@@ -13,4 +13,4 @@ dependencies = [
 car-protocol = { workspace = true }
 
 [project.scripts]
-pico-controller = "local_controller.main:main"
+local-controller = "local_controller.main:main"

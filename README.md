@@ -167,13 +167,13 @@ Connect the Pico directly to your laptop and run:
 ```sh
 cd local-controller
 uv sync
-uv run pico-controller
+uv run local-controller
 ```
 
 Pass a serial port as an argument to override auto-detection:
 
 ```sh
-uv run pico-controller /dev/tty.usbmodem1234
+uv run local-controller /dev/tty.usbmodem1234
 ```
 
 ### Controls
