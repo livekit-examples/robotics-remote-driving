@@ -1,15 +1,18 @@
 # Pico Driving
 
-Remote control system for an RC vehicle using a Raspberry Pi Pico as a signal spoof for a physical remote with active-low buttons. Supports both direct USB control and low-latency remote driving over LiveKit with a live camera feed.
+Remote control system for an RC vehicle using a Raspberry Pi Pico as a signal spoof for a physical remote with active-low buttons. Supports direct USB control, low-latency remote driving over LiveKit with a live camera feed, and AI-powered autonomous driving via voice commands.
 
 ## Architecture
 
 ```
-[Laptop]                                [Raspberry Pi]                    [Pico]
+[Laptop / Cloud]                        [Raspberry Pi]                    [Pico]
 remote-controller/                      local-bridge/                     pico-firmware/
   keyboard → data channel ──────────→     data channel → serial ──────→    GPIO open-drain
   pygame   ← video track  ←────────────    camera → video track            → remote buttons
                      (LiveKit Room)
+remote-agent/
+  AI voice ← video track  ←────────────
+  tools   → data channel ──────────→
 ```
 
 For local testing without LiveKit or a camera:
@@ -24,10 +27,41 @@ local-controller/           pico-firmware/
 
 | Directory | Runs on | Description |
 |---|---|---|
+| `car-protocol/` | (shared library) | Shared protocol constants and helpers — button pin IDs, serial encoding, LiveKit data channel command builders |
 | `pico-firmware/` | Raspberry Pi Pico | Receives single-byte serial commands and drives 6 GPIO lines as open-drain outputs to simulate button presses on the physical remote |
 | `local-bridge/` | Raspberry Pi | Connects to LiveKit, publishes camera video, receives control commands via data channel, and forwards them to the Pico over USB serial |
 | `remote-controller/` | Laptop | Connects to LiveKit, displays the live camera stream, and sends keyboard commands over the data channel |
+| `remote-agent/` | Laptop / Cloud | AI voice agent that sees through the car's camera and drives via function-calling tools, powered by Gemini Live |
 | `local-controller/` | Laptop | Standalone controller that drives the Pico directly over USB serial with a pygame keyboard UI (no LiveKit or camera needed) |
+
+## Project Structure
+
+This is a [uv workspace](https://docs.astral.sh/uv/concepts/workspaces/) with a shared `car-protocol` library and four application packages:
+
+```
+car-protocol/car_protocol/      # Shared protocol (zero external deps)
+    buttons.py                  #   Pin IDs, names, mappings
+    serial.py                   #   Serial encoding + port detection
+    commands.py                 #   LiveKit data channel command builders
+
+local-controller/pico_controller/
+    main.py                     #   Pygame event loop + serial I/O
+    ui.py                       #   Button status rendering
+
+local-bridge/local_bridge/
+    main.py                     #   Room connect + orchestration
+    camera.py                   #   OpenCV capture → LiveKit video
+    control.py                  #   Data channel → serial + keepalive
+
+remote-controller/remote_controller/
+    main.py                     #   Room connect + pygame event loop
+    video.py                    #   LiveKit video stream receiver
+    ui.py                       #   Overlay rendering
+
+remote-agent/remote_agent/
+    main.py                     #   AgentServer setup + entrypoint
+    car_agent.py                #   CarAgent class with function tools
+```
 
 ## Hardware
 
@@ -99,7 +133,7 @@ cp .env.example .env.local
 ```sh
 cd local-bridge
 uv sync
-uv run python main.py
+uv run python -m local_bridge
 ```
 
 Set `SERIAL_PORT` env var to override auto-detection (default: `/dev/ttyACM*`).
@@ -109,8 +143,20 @@ Set `SERIAL_PORT` env var to override auto-detection (default: `/dev/ttyACM*`).
 ```sh
 cd remote-controller
 uv sync
-uv run python main.py
+uv run python -m remote_controller
 ```
+
+### AI Agent (over LiveKit)
+
+Start the AI voice agent that sees through the car's camera and drives via voice commands:
+
+```sh
+cd remote-agent
+uv sync
+uv run python -m remote_agent dev
+```
+
+The agent uses Gemini Live for native audio/video understanding and exposes driving controls as function tools.
 
 ### Direct USB Control (no LiveKit)
 
@@ -119,13 +165,13 @@ Connect the Pico directly to your laptop and run:
 ```sh
 cd local-controller
 uv sync
-uv run python controller.py
+uv run pico-controller
 ```
 
 Pass a serial port as an argument to override auto-detection:
 
 ```sh
-uv run python controller.py /dev/tty.usbmodem1234
+uv run pico-controller /dev/tty.usbmodem1234
 ```
 
 ### Controls
