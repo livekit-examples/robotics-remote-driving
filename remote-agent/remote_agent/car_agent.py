@@ -1,6 +1,6 @@
 """CarAgent: AI driver that controls the car via LiveKit data channel."""
 
-import json
+import asyncio
 import logging
 
 from livekit.agents import Agent, get_job_context
@@ -24,8 +24,11 @@ class CarAgent(Agent):
                 "- speed_boost — go faster\n"
                 "- brake — slow down\n"
                 "- stop — release ALL controls\n"
-                "- release_control — release one specific control\n\n"
+                "- release_control — release one specific control\n"
+                "- press_for_duration — press a control for a specific duration in seconds\n\n"
                 "You can combine controls (e.g. drive_forward + turn_left = curve left).\n"
+                "Use press_for_duration for precise maneuvers. Call it multiple times in parallel "
+                "to combine timed controls (e.g. forward 2s + left 0.5s = slight left curve).\n"
                 "Always describe what you see in the camera when you drive.\n"
                 "Always call stop when finished driving.\n"
                 "When asked to find something, drive around while describing what you see "
@@ -93,3 +96,23 @@ class CarAgent(Agent):
             return f"Unknown control '{control}'."
         await self._send(*release_command(pin))
         return f"Released {control}."
+
+    @function_tool()
+    async def press_for_duration(self, control: str, duration: float):
+        """Press a control for a specific duration then release it.
+
+        Call this multiple times in parallel to combine timed controls
+        (e.g. forward 2s + left 0.5s for a slight left curve).
+
+        Args:
+            control: One of 'forward', 'backward', 'left', 'right', 'speed', 'brake'.
+            duration: How long to hold the control in seconds (0.1 to 10.0).
+        """
+        pin = NAME_TO_PIN.get(control.lower())
+        if pin is None:
+            return f"Unknown control '{control}'."
+        duration = max(0.1, min(duration, 10.0))
+        await self._send(*press_command(pin))
+        await asyncio.sleep(duration)
+        await self._send(*release_command(pin))
+        return f"Pressed {control} for {duration}s."
