@@ -10,6 +10,7 @@ from livekit.agents import (
     JobContext,
     JobProcess,
     cli,
+    inference,
 )
 from livekit.plugins import silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
@@ -35,8 +36,12 @@ server.setup_fnc = prewarm
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt="deepgram/nova-3",
-        llm="openai/gpt-4.1-mini",
-        tts="cartesia/sonic-3",
+        llm="openai/gpt-5.4",
+        tts=inference.TTS(
+            model="elevenlabs/eleven_turbo_v2",
+            voice="N2lVS1w4EtoT3dr4eOWO",
+            language="en",
+        ),
         vad=ctx.proc.userdata["vad"],
         turn_detection=MultilingualModel(),
     )
