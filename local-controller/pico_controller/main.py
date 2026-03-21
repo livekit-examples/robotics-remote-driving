@@ -2,22 +2,15 @@
 """Keyboard controller for Pico remote over USB serial."""
 
 import sys
-import glob
 
 import pygame
 import serial
 
-# Button pin IDs (must match Remote.h enum)
-UP = 16
-DOWN = 17
-LEFT = 18
-RIGHT = 19
-SPEED = 20
-BRAKE = 21
+from car_protocol import UP, DOWN, LEFT, RIGHT, SPEED, BRAKE
+from car_protocol.serial import encode_press, encode_release, find_pico_port, RELEASE_ALL
+from pico_controller.ui import draw_status
 
-RELEASE_ALL = 0x00
-
-# Key-to-button mapping
+# Key-to-button mapping (pygame-specific)
 KEY_MAP = {
     pygame.K_w: UP,
     pygame.K_a: LEFT,
@@ -27,36 +20,10 @@ KEY_MAP = {
     pygame.K_SPACE: BRAKE,
 }
 
-BUTTON_NAMES = {
-    UP: "UP", DOWN: "DOWN", LEFT: "LEFT",
-    RIGHT: "RIGHT", SPEED: "SPEED", BRAKE: "BRAKE",
-}
-
-# Display layout: key label shown next to each button
 KEY_LABELS = {
     UP: "W", DOWN: "S", LEFT: "A",
     RIGHT: "D", SPEED: "Tab", BRAKE: "Space",
 }
-
-
-def find_pico_port():
-    """Auto-detect Pico serial port on macOS."""
-    ports = glob.glob("/dev/tty.usbmodem*")
-    if not ports:
-        print("ERROR: No Pico found. Is it plugged in?")
-        sys.exit(1)
-    if len(ports) > 1:
-        print(f"Multiple ports found: {ports}")
-    print(f"Using: {ports[0]}")
-    return ports[0]
-
-
-def encode_press(button_id):
-    return bytes([button_id & 0x7F])
-
-
-def encode_release(button_id):
-    return bytes([0x80 | (button_id & 0x7F)])
 
 
 def main():
@@ -97,26 +64,7 @@ def main():
             for btn in held:
                 ser.write(encode_press(btn))
 
-            # Draw
-            screen.fill((30, 30, 30))
-
-            title = font.render("Pico Remote", True, (255, 255, 255))
-            screen.blit(title, (110, 10))
-
-            y = 50
-            for btn_id in [UP, DOWN, LEFT, RIGHT, SPEED, BRAKE]:
-                active = btn_id in held
-                color = (0, 255, 100) if active else (100, 100, 100)
-                key = KEY_LABELS[btn_id]
-                name = BUTTON_NAMES[btn_id]
-                label = f"[{key:>5}]  {name:<6} {'HELD' if active else ''}"
-                text = font.render(label, True, color)
-                screen.blit(text, (60, y))
-                y += 32
-
-            hint = font.render("WASD Tab Space | Esc=quit", True, (150, 150, 150))
-            screen.blit(hint, (30, y + 15))
-
+            draw_status(screen, font, held, KEY_LABELS)
             pygame.display.flip()
             clock.tick(60)
     finally:

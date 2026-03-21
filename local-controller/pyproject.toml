@@ -6,7 +6,11 @@ requires-python = ">=3.10"
 dependencies = [
     "pyserial>=3.5",
     "pygame>=2.5",
+    "car-protocol",
 ]
 
+[tool.uv.sources]
+car-protocol = { workspace = true }
+
 [project.scripts]
-pico-controller = "controller:main"
+pico-controller = "pico_controller.main:main"
