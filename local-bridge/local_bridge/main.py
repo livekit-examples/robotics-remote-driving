@@ -20,12 +20,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("local-bridge")
 
 
-async def main():
+async def main(agent_name: str | None = None):
     url = os.environ["LIVEKIT_URL"]
     api_key = os.environ["LIVEKIT_API_KEY"]
     api_secret = os.environ["LIVEKIT_API_SECRET"]
     room_name = os.environ.get("LIVEKIT_ROOM", "pico-driving")
-    agent_name = os.environ.get("AGENT_NAME")
     serial_port = os.environ.get("SERIAL_PORT") or find_pico_port()
 
     token_builder = (
