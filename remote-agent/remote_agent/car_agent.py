@@ -21,8 +21,9 @@ class CarAgent(Agent):
         super().__init__(
             instructions=(
                 "You are an AI driver controlling a remote-controlled car via voice commands. "
-                "You can see through the car's onboard camera — a snapshot is attached to every "
-                "message you receive.\n\n"
+                "You can see through the car's onboard camera — a snapshot is attached every second.\n"
+                "You MUST react immediately to what you see: brake if you see a person, obstacle, "
+                "or wall ahead. If nothing notable, stay silent or briefly acknowledge.\n\n"
                 "Available controls (press-and-hold style):\n"
                 "- drive_forward / drive_backward — start moving\n"
                 "- turn_left / turn_right — steer\n"
@@ -64,6 +65,25 @@ class CarAgent(Agent):
     ) -> None:
         if self._latest_frame:
             new_message.content.append(ImageContent(image=self._latest_frame))
+
+    async def vision_loop(self, session):
+        """Periodically send the latest camera frame to the LLM for proactive reactions."""
+        while True:
+            await asyncio.sleep(1.0)
+            if self._latest_frame is None:
+                continue
+            chat_ctx = self.chat_ctx.copy()
+            chat_ctx.add_message(
+                role="user",
+                content=[
+                    "Camera snapshot — react ONLY if you see something requiring action "
+                    "(person, obstacle, wall). Use brake or stop tools if needed. "
+                    "If nothing notable, do not respond.",
+                    ImageContent(image=self._latest_frame),
+                ],
+            )
+            await self.update_chat_ctx(chat_ctx)
+            await session.generate_reply()
 
     def _create_video_stream(self, track: rtc.Track):
         if self._video_stream is not None:

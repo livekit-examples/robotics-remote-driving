@@ -1,5 +1,6 @@
 """LiveKit AI agent server setup and session entrypoint."""
 
+import asyncio
 import logging
 from pathlib import Path
 
@@ -46,12 +47,15 @@ async def entrypoint(ctx: JobContext):
         turn_detection=MultilingualModel(),
     )
 
+    agent = CarAgent()
     await session.start(
         room=ctx.room,
-        agent=CarAgent(),
+        agent=agent,
     )
     await ctx.connect()
     await session.generate_reply()
+
+    asyncio.create_task(agent.vision_loop(session))
 
 
 if __name__ == "__main__":
