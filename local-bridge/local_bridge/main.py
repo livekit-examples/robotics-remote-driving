@@ -7,6 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from livekit import api, rtc
+from livekit.api import RoomAgentDispatch, RoomConfiguration
 
 from car_protocol.serial import find_pico_port
 from local_bridge.audio import AudioBridge
@@ -24,14 +25,21 @@ async def main():
     api_key = os.environ["LIVEKIT_API_KEY"]
     api_secret = os.environ["LIVEKIT_API_SECRET"]
     room_name = os.environ.get("LIVEKIT_ROOM", "pico-driving")
+    agent_name = os.environ.get("AGENT_NAME")
     serial_port = os.environ.get("SERIAL_PORT") or find_pico_port()
 
-    token = (
+    token_builder = (
         api.AccessToken(api_key, api_secret)
         .with_identity("local-bridge")
         .with_grants(api.VideoGrants(room_join=True, room=room_name))
-        .to_jwt()
     )
+    if agent_name:
+        token_builder = token_builder.with_room_config(
+            RoomConfiguration(
+                agents=[RoomAgentDispatch(agent_name=agent_name)],
+            ),
+        )
+    token = token_builder.to_jwt()
 
     room = rtc.Room()
     audio = AudioBridge(room)
