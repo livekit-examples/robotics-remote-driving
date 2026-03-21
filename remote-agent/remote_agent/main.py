@@ -12,7 +12,7 @@ from livekit.agents import (
     cli,
     room_io,
 )
-from livekit.plugins import google, silero
+from livekit.plugins import openai, silero
 
 from remote_agent.car_agent import CarAgent
 
@@ -34,12 +34,7 @@ server.setup_fnc = prewarm
 @server.rtc_session(agent_name="remote-agent")
 async def entrypoint(ctx: JobContext):
     session = AgentSession(
-        llm=google.beta.realtime.RealtimeModel(
-            model="gemini-2.5-flash-native-audio-preview-12-2025",
-            voice="Puck",
-            proactivity=True,
-            enable_affective_dialog=True,
-        ),
+        llm=openai.realtime.RealtimeModel(voice="coral"),
         vad=ctx.proc.userdata["vad"],
     )
 
