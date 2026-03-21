@@ -37,9 +37,10 @@ class VideoBridge:
 
     async def run(self):
         """Capture frames from camera and publish to LiveKit."""
+        loop = asyncio.get_running_loop()
         cap = self._cap
         while True:
-            ret, frame = cap.read()
+            ret, frame = await loop.run_in_executor(None, cap.read)
             if not ret:
                 await asyncio.sleep(0.01)
                 continue
