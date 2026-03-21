@@ -22,7 +22,7 @@ class CarAgent(Agent):
                 "- drive_forward / drive_backward — start moving\n"
                 "- turn_left / turn_right — steer\n"
                 "- speed_boost — go faster\n"
-                "- brake — slow down\n"
+                "- brake — emergency stop (instantly kills all momentum)\n"
                 "- stop — release ALL controls\n"
                 "- release_control — release one specific control\n"
                 "- press_for_duration — press a control for a specific duration in seconds\n\n"
@@ -74,9 +74,9 @@ class CarAgent(Agent):
 
     @function_tool()
     async def brake(self):
-        """Apply the brake to slow down."""
+        """Emergency stop — instantly kills all momentum. Use when you need to stop immediately."""
         await self._send(*press_command(BRAKE))
-        return "Braking."
+        return "Emergency brake applied."
 
     @function_tool()
     async def stop(self):
