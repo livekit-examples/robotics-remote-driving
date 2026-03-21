@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from livekit import api, rtc
 
 from car_protocol.serial import find_pico_port, RELEASE_ALL
+from local_bridge.audio import AudioBridge
 from local_bridge.camera import capture_loop
 from local_bridge.control import handle_control_packet, keepalive_loop
 
@@ -50,9 +51,14 @@ async def main():
             return
         handle_control_packet(packet.data, ser, held_buttons)
 
+    audio = AudioBridge(room)
+
     logger.info(f"Connecting to room: {room_name}")
     await room.connect(url, token)
     logger.info("Connected to LiveKit room")
+
+    # Start audio bridge (mic + speaker)
+    await audio.start()
 
     # Setup video source and publish camera track
     source = rtc.VideoSource(WIDTH, HEIGHT)
@@ -82,5 +88,6 @@ async def main():
         ser.write(bytes([RELEASE_ALL]))
         ser.close()
         cap.release()
+        await audio.close()
         await room.disconnect()
         logger.info("Disconnected. Released all buttons.")
