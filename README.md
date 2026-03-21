@@ -11,8 +11,9 @@ remote-controller/                      local-bridge/                     pico-f
   pygame   ← video track  ←────────────    camera → video track            → remote buttons
                      (LiveKit Room)
 remote-agent/
-  AI voice ← video track  ←────────────
+  AI voice ↔ audio tracks ↔──────────     mic / speaker ↔ audio tracks
   tools   → data channel ──────────→
+           ← video track  ←────────────
 ```
 
 For local testing without LiveKit or a camera:
@@ -29,7 +30,7 @@ local-controller/           pico-firmware/
 |---|---|---|
 | `car-protocol/` | (shared library) | Shared protocol constants and helpers — button pin IDs, serial encoding, LiveKit data channel command builders |
 | `pico-firmware/` | Raspberry Pi Pico | Receives single-byte serial commands and drives 6 GPIO lines as open-drain outputs to simulate button presses on the physical remote |
-| `local-bridge/` | Raspberry Pi | Connects to LiveKit, publishes camera video, receives control commands via data channel, and forwards them to the Pico over USB serial |
+| `local-bridge/` | Raspberry Pi | Connects to LiveKit, publishes camera video and microphone audio, plays agent audio through the speaker, receives control commands via data channel, and forwards them to the Pico over USB serial |
 | `remote-controller/` | Laptop | Connects to LiveKit, displays the live camera stream, and sends keyboard commands over the data channel |
 | `remote-agent/` | Laptop / Cloud | AI voice agent that sees through the car's camera and drives via function-calling tools, powered by Gemini Live |
 | `local-controller/` | Laptop | Standalone controller that drives the Pico directly over USB serial with a pygame keyboard UI (no LiveKit or camera needed) |
@@ -50,8 +51,9 @@ local-controller/local_controller/
 
 local-bridge/local_bridge/
     main.py                     #   Room connect + orchestration
-    camera.py                   #   OpenCV capture → LiveKit video
-    control.py                  #   Data channel → serial + keepalive
+    audio.py                    #   AudioBridge — mic publish + agent speaker
+    video.py                    #   VideoBridge — OpenCV capture → LiveKit video
+    control.py                  #   DataBridge — data channel → serial + keepalive
 
 remote-controller/remote_controller/
     main.py                     #   Room connect + pygame event loop
