@@ -66,7 +66,7 @@ function DropZone({
     >
       <div
         className={cn(
-          "absolute inset-5 rounded-[3px] border-2 border-dashed transition-colors",
+          "absolute inset-5 transition-colors",
           isDragging
             ? "border-cyan-500/60 bg-cyan-500/5"
             : "border-white/[0.08]",

@@ -39,80 +39,122 @@ export default function App() {
   }, [controls.releaseAll, livekit.disconnect]);
 
   return (
-    <div className="flex flex-col h-screen bg-black select-none pt-12 px-4 gap-2">
-      {/* Titlebar / drag region — breaks out of px-8 so drag area spans full window width */}
-      <div className="shrink-0 [-webkit-app-region:drag] flex items-center justify-start relative -mx-8 px-8">
-        <div className="flex [-webkit-app-region:no-drag] bg-white/[0.04] rounded-[3px] p-0.5">
-          {(["teleop", "replay"] as const).map((tab) => (
+    <div className="flex flex-col h-screen bg-black select-none">
+      {/* Title bar */}
+      <div className="shrink-0 h-12 [-webkit-app-region:drag] flex items-center justify-center bg-white/[0.02] border-b border-white/[0.06]">
+        <div className="flex [-webkit-app-region:no-drag] bg-white/[0.04] rounded-[3px] p-0.5 gap-0.5">
+          {[
+            {
+              id: "teleop" as const,
+              label: "Teleop",
+              icon: (
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"
+                  />
+                </svg>
+              ),
+            },
+            {
+              id: "replay" as const,
+              label: "Replay",
+              icon: (
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"
+                  />
+                </svg>
+              ),
+            },
+          ].map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "px-5 py-1.5 rounded-[2px] text-[11px] font-medium tracking-wide uppercase transition-colors cursor-pointer",
-                activeTab === tab
+                "flex items-center gap-1.5 px-4 py-1.5 rounded-[2px] text-[11px] font-medium tracking-wide uppercase transition-colors cursor-pointer",
+                activeTab === tab.id
                   ? "bg-white/10 text-white/80"
                   : "text-white/30 hover:text-white/50",
               )}
             >
-              {tab}
+              {tab.icon}
+              {tab.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Teleop tab */}
-      {activeTab === "teleop" && (
-        <>
-          <ConnectBar
-            connectionState={livekit.connectionState}
-            onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
-            error={livekit.error}
-          />
-
-          <main className="flex-1 relative overflow-hidden rounded-[3px] border border-white/[0.06] bg-white/[0.02]">
-            <VideoDisplay
-              videoTrack={livekit.videoTrack}
+      {/* Content */}
+      <div className="flex-1 flex flex-col min-h-0 px-4 pt-2 gap-2">
+        {activeTab === "teleop" && (
+          <>
+            <ConnectBar
               connectionState={livekit.connectionState}
-              isRecording={recorder.isRecording}
-              controls={controlState}
-              onFrame={recorder.captureFrame}
-              onMeta={setVideoMeta}
+              onConnect={handleConnect}
+              onDisconnect={handleDisconnect}
+              error={livekit.error}
             />
-            {livekit.connectionState === "connected" && (
-              <KeyOverlay held={controls.held} />
-            )}
-            {livekit.connectionState === "connected" && (
-              <RecordButton
+
+            <main className="flex-1 relative overflow-hidden rounded-[3px] border border-white/[0.06] bg-white/[0.02]">
+              <VideoDisplay
+                videoTrack={livekit.videoTrack}
+                connectionState={livekit.connectionState}
                 isRecording={recorder.isRecording}
-                frameCount={recorder.frameCount}
-                elapsed={recorder.elapsed}
-                onStart={recorder.startRecording}
-                onStop={recorder.stopRecording}
+                controls={controlState}
+                onFrame={recorder.captureFrame}
+                onMeta={setVideoMeta}
               />
-            )}
-          </main>
-        </>
-      )}
+              {livekit.connectionState === "connected" && (
+                <KeyOverlay held={controls.held} />
+              )}
+              {livekit.connectionState === "connected" && (
+                <RecordButton
+                  isRecording={recorder.isRecording}
+                  frameCount={recorder.frameCount}
+                  elapsed={recorder.elapsed}
+                  onStart={recorder.startRecording}
+                  onStop={recorder.stopRecording}
+                />
+              )}
+            </main>
+          </>
+        )}
 
-      {/* Replay tab */}
-      {activeTab === "replay" && <ReplayView replay={replay} />}
+        {/* Replay tab */}
+        {activeTab === "replay" && <ReplayView replay={replay} />}
 
-      {/* Status bar — breaks out of px-8 so border spans full window width */}
-      <div className="shrink-0 -mx-8 px-8 border-t border-white/[0.04]">
-        <StatusBar
-          tab={activeTab}
-          connectionState={livekit.connectionState}
-          isRecording={recorder.isRecording}
-          frameCount={
-            activeTab === "teleop" ? recorder.frameCount : replay.currentIndex
-          }
-          rtt={livekit.rtt}
-          videoMeta={videoMeta}
-          isReplayLoaded={replay.isLoaded}
-          replayTotalFrames={replay.totalFrames}
-          isReplayPlaying={replay.isPlaying}
-        />
+        {/* Status bar */}
+        <div className="shrink-0 border-t border-white/[0.04] px-4">
+          <StatusBar
+            tab={activeTab}
+            connectionState={livekit.connectionState}
+            isRecording={recorder.isRecording}
+            frameCount={
+              activeTab === "teleop" ? recorder.frameCount : replay.currentIndex
+            }
+            rtt={livekit.rtt}
+            videoMeta={videoMeta}
+            isReplayLoaded={replay.isLoaded}
+            replayTotalFrames={replay.totalFrames}
+            isReplayPlaying={replay.isPlaying}
+          />
+        </div>
       </div>
     </div>
   );

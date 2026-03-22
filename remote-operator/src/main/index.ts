@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, nativeImage } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc-handlers'
 
@@ -6,12 +6,15 @@ app.setName('LiveKit Driving')
 const isDev = !app.isPackaged
 
 function createWindow(): BrowserWindow {
+  const icon = nativeImage.createFromPath(join(__dirname, '../../build/icon.png'))
+
   const win = new BrowserWindow({
     width: 1280,
     height: 820,
     minWidth: 960,
     minHeight: 640,
     backgroundColor: '#000000',
+    icon,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
