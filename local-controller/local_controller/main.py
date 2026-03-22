@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Keyboard controller for Pico remote over USB serial."""
 
-import sys
+import argparse
 
 import pygame
 import serial
@@ -27,7 +27,13 @@ KEY_LABELS = {
 
 
 def main():
-    port_path = sys.argv[1] if len(sys.argv) > 1 else find_pico_port()
+    parser = argparse.ArgumentParser(
+        description="Direct USB serial controller for Pico driving (no LiveKit)"
+    )
+    parser.add_argument("port", nargs="?", default=None, help="serial port (auto-detected if omitted)")
+    args = parser.parse_args()
+
+    port_path = args.port or find_pico_port()
     ser = serial.Serial(port_path, 115200, timeout=0)
     print(f"Connected to {port_path}")
 
