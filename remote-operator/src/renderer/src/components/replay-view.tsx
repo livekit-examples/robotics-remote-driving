@@ -290,7 +290,7 @@ export function ReplayView({ replay }: ReplayViewProps) {
           className="absolute inset-0 w-full h-full object-contain"
         />
       )}
-      <KeyOverlay held={replay.held} />
+      <KeyOverlay held={replay.held} className="bottom-20" />
       <PlaybackBar replay={replay} />
     </div>
   );

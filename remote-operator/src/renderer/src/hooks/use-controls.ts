@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { BUTTONS, DEFAULT_CONTROLS, type ControlState } from '../lib/constants'
+import { BUTTONS, type ControlState } from '../lib/constants'
 
 const KEY_MAP: Record<string, number> = {
   w: BUTTONS.UP,
@@ -40,7 +40,6 @@ export function useControls(
       sendControlRef.current('release_all')
       heldRef.current = new Set()
       setHeld(new Set())
-      window.electronAPI?.sendControls(DEFAULT_CONTROLS)
     }
   }, [])
 
@@ -59,7 +58,6 @@ export function useControls(
         heldRef.current = next
         setHeld(next)
         sendControlRef.current('press', pin)
-        window.electronAPI?.sendControls(heldToControls(next))
       }
     }
 
@@ -74,7 +72,6 @@ export function useControls(
         heldRef.current = next
         setHeld(next)
         sendControlRef.current('release', pin)
-        window.electronAPI?.sendControls(heldToControls(next))
       }
     }
 
@@ -83,7 +80,6 @@ export function useControls(
         sendControlRef.current('release_all')
         heldRef.current = new Set()
         setHeld(new Set())
-        window.electronAPI?.sendControls(DEFAULT_CONTROLS)
       }
     }
 

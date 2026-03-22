@@ -2,7 +2,7 @@ import { McapWriter, IWritable } from '@mcap/core'
 import { open, FileHandle, unlink, readFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { DEFAULT_CONTROLS, type ControlState } from './types'
+import { type ControlState } from './types'
 
 class FileHandleWritable implements IWritable {
   private handle: FileHandle
@@ -29,8 +29,8 @@ export class McapRecorder {
   private cameraChannelId = 0
   private controlsChannelId = 0
   private startTime: bigint = 0n
-  private latestControls: ControlState = { ...DEFAULT_CONTROLS }
   private _frameCount = 0
+  private writeQueue: Promise<void> = Promise.resolve()
 
   get frameCount(): number {
     return this._frameCount
@@ -87,37 +87,37 @@ export class McapRecorder {
     })
 
     this._frameCount = 0
+    this.writeQueue = Promise.resolve()
     this.startTime = process.hrtime.bigint()
-    this.latestControls = { ...DEFAULT_CONTROLS }
   }
 
-  appendFrame(jpegBuffer: Buffer): void {
+  appendFrame(jpegBuffer: Buffer, controls: ControlState): void {
     if (!this.writer) return
 
+    const seq = this._frameCount
     const now = process.hrtime.bigint() - this.startTime
+    const cameraData = new Uint8Array(jpegBuffer)
+    const controlData = new TextEncoder().encode(JSON.stringify(controls))
 
-    this.writer.addMessage({
-      channelId: this.cameraChannelId,
-      sequence: this._frameCount,
-      logTime: now,
-      publishTime: now,
-      data: new Uint8Array(jpegBuffer)
-    })
-
-    const controlData = new TextEncoder().encode(JSON.stringify(this.latestControls))
-    this.writer.addMessage({
-      channelId: this.controlsChannelId,
-      sequence: this._frameCount,
-      logTime: now,
-      publishTime: now,
-      data: controlData
+    this.writeQueue = this.writeQueue.then(async () => {
+      if (!this.writer) return
+      await this.writer.addMessage({
+        channelId: this.cameraChannelId,
+        sequence: seq,
+        logTime: now,
+        publishTime: now,
+        data: cameraData
+      })
+      await this.writer.addMessage({
+        channelId: this.controlsChannelId,
+        sequence: seq,
+        logTime: now,
+        publishTime: now,
+        data: controlData
+      })
     })
 
     this._frameCount++
-  }
-
-  updateControls(state: ControlState): void {
-    this.latestControls = state
   }
 
   async stop(): Promise<Uint8Array> {
@@ -125,6 +125,7 @@ export class McapRecorder {
       throw new Error('Not recording')
     }
 
+    await this.writeQueue
     await this.writer.end()
     await this.fileHandle.close()
 

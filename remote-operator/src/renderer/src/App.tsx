@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { cn } from "./lib/utils";
 import { useLiveKit } from "./hooks/use-livekit";
-import { useControls } from "./hooks/use-controls";
+import { useControls, heldToControls } from "./hooks/use-controls";
 import { useRecorder } from "./hooks/use-recorder";
 import { useReplay } from "./hooks/use-replay";
 import { ConnectBar } from "./components/connect-bar";
@@ -22,6 +22,7 @@ export default function App() {
   );
   const recorder = useRecorder();
   const replay = useReplay();
+  const controlState = useMemo(() => heldToControls(controls.held), [controls.held]);
 
   const handleConnect = useCallback(
     (url: string, token: string) => livekit.connect(url, token),
@@ -70,6 +71,7 @@ export default function App() {
               videoTrack={livekit.videoTrack}
               connectionState={livekit.connectionState}
               isRecording={recorder.isRecording}
+              controls={controlState}
               onFrame={recorder.captureFrame}
             />
             {livekit.connectionState === "connected" && (
@@ -100,6 +102,7 @@ export default function App() {
           frameCount={
             activeTab === "teleop" ? recorder.frameCount : replay.currentIndex
           }
+          rtt={livekit.rtt}
           isReplayLoaded={replay.isLoaded}
           replayTotalFrames={replay.totalFrames}
           isReplayPlaying={replay.isPlaying}

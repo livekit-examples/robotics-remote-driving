@@ -26,6 +26,13 @@ class DataBridge:
         """Register data channel handler."""
         @self._room.on("data_received")
         def on_data(packet: rtc.DataPacket):
+            if packet.topic == "ping":
+                asyncio.ensure_future(
+                    self._room.local_participant.publish_data(
+                        packet.data, reliable=False, topic="pong"
+                    )
+                )
+                return
             if packet.topic != "control":
                 return
             cmd = parse_command(packet.data)

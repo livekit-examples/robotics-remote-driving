@@ -71,7 +71,7 @@ export function useReplay(): ReplayState {
       }
       indexRef.current = next
       setCurrentIndex(next)
-    }, 100) // ~10fps
+    }, 33) // ~30fps
   }, [stopPlayback])
 
   const loadFrames = useCallback((data: McapFrame[]) => {

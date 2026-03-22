@@ -16,8 +16,7 @@ export interface McapFrame {
 export interface ElectronAPI {
   startRecording: () => Promise<void>
   stopRecording: () => Promise<Uint8Array>
-  sendFrame: (jpeg: Uint8Array) => void
-  sendControls: (state: ControlState) => void
+  sendFrame: (jpeg: Uint8Array, controls: ControlState) => void
   saveFile: (buffer: Uint8Array) => Promise<string | null>
 
   // Replay

@@ -18,6 +18,7 @@ interface StatusBarProps {
   connectionState: ConnectionState;
   isRecording: boolean;
   frameCount: number;
+  rtt: number | null;
   isReplayLoaded: boolean;
   replayTotalFrames: number;
   isReplayPlaying: boolean;
@@ -28,6 +29,7 @@ export function StatusBar({
   connectionState,
   isRecording,
   frameCount,
+  rtt,
   isReplayLoaded,
   replayTotalFrames,
   isReplayPlaying,
@@ -69,6 +71,9 @@ export function StatusBar({
       </div>
 
       <div className="flex items-center gap-2">
+        {teleop && rtt !== null && (
+          <span className="text-white/25 font-mono">{Math.round(rtt)}ms RTT</span>
+        )}
         {teleop && isRecording && (
           <span className="text-red-400/70 font-mono">{frameCount} frames</span>
         )}

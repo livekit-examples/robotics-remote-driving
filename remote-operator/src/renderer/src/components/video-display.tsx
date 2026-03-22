@@ -1,19 +1,22 @@
 import { useEffect, useRef, useCallback } from 'react'
 import type { RemoteTrack } from 'livekit-client'
 import { Spinner } from './ui/spinner'
-import type { ConnectionState } from '../lib/constants'
+import type { ConnectionState, ControlState } from '../lib/constants'
 
 interface VideoDisplayProps {
   videoTrack: RemoteTrack | null
   connectionState: ConnectionState
   isRecording: boolean
-  onFrame: (videoEl: HTMLVideoElement) => void
+  controls: ControlState
+  onFrame: (videoEl: HTMLVideoElement, controls: ControlState) => void
 }
 
-export function VideoDisplay({ videoTrack, connectionState, isRecording, onFrame }: VideoDisplayProps) {
+export function VideoDisplay({ videoTrack, connectionState, isRecording, controls, onFrame }: VideoDisplayProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const frameLoopRef = useRef<number>(0)
   const lastCaptureRef = useRef<number>(0)
+  const controlsRef = useRef(controls)
+  controlsRef.current = controls
 
   // Attach/detach video track
   useEffect(() => {
@@ -24,15 +27,15 @@ export function VideoDisplay({ videoTrack, connectionState, isRecording, onFrame
     return () => { videoTrack.detach(mediaEl) }
   }, [videoTrack])
 
-  // Frame capture loop for recording (~10fps)
+  // Frame capture loop for recording (~30fps)
   const captureLoop = useCallback(() => {
     const videoEl = videoRef.current
     if (!videoEl || !isRecording) return
 
     const now = performance.now()
-    if (now - lastCaptureRef.current >= 100) {
+    if (now - lastCaptureRef.current >= 33) {
       lastCaptureRef.current = now
-      onFrame(videoEl)
+      onFrame(videoEl, controlsRef.current)
     }
 
     frameLoopRef.current = requestAnimationFrame(captureLoop)

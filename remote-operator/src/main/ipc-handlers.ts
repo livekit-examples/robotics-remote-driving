@@ -10,12 +10,8 @@ export function registerIpcHandlers(win: BrowserWindow): void {
     await recorder.start()
   })
 
-  ipcMain.on('recorder:frame', (_event, jpegBuffer: Uint8Array) => {
-    recorder.appendFrame(Buffer.from(jpegBuffer))
-  })
-
-  ipcMain.on('recorder:controls', (_event, state) => {
-    recorder.updateControls(state)
+  ipcMain.on('recorder:frame', (_event, jpegBuffer: Uint8Array, controls) => {
+    recorder.appendFrame(Buffer.from(jpegBuffer), controls)
   })
 
   ipcMain.handle('recorder:stop', async () => {
