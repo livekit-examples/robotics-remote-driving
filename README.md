@@ -30,7 +30,7 @@ uv run token-creator
 # Copy the URL and Token into the app
 
 cd remote-operator
-npm install && npm run dev
+pnpm install && pnpm dev
 ```
 
 Use WASD to drive, Tab for speed, Space for brake.

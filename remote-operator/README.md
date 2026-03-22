@@ -2,13 +2,61 @@
 
 Electron teleop GUI for driving the robot and recording datasets.
 
+## Prerequisites
+
+You need **Node.js** (v18+) and **pnpm** installed.
+
+### Install Node.js
+
+**macOS** (via Homebrew):
+
+```sh
+brew install node
+```
+
+**Linux** (via NodeSource):
+
+```sh
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+**Windows**: Download the installer from https://nodejs.org
+
+### Install pnpm
+
+```sh
+npm install -g pnpm
+```
+
+### Electron system dependencies (Linux only)
+
+Electron requires some system libraries on Linux:
+
+```sh
+# Debian/Ubuntu
+sudo apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libasound2
+```
+
+macOS and Windows need no extra system dependencies — Electron bundles everything.
+
 ## Setup
 
 ```sh
 cd remote-operator
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
+
+This starts the Electron app in development mode with hot reload.
+
+### Build for production
+
+```sh
+pnpm build
+```
+
+The packaged app will be in the `out/` directory.
 
 ## Usage
 

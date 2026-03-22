@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef } from 'react'
 
 export interface RecorderState {
   isRecording: boolean
@@ -13,14 +13,10 @@ export function useRecorder(): RecorderState {
   const [isRecording, setIsRecording] = useState(false)
   const [frameCount, setFrameCount] = useState(0)
   const [elapsed, setElapsed] = useState(0)
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const canvasRef = useRef(document.createElement('canvas'))
   const frameCountRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef = useRef(0)
-
-  useEffect(() => {
-    canvasRef.current = document.createElement('canvas')
-  }, [])
 
   const captureFrame = useCallback((videoEl: HTMLVideoElement) => {
     const canvas = canvasRef.current

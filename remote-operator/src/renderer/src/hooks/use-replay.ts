@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { BUTTONS, type ControlState } from '../lib/constants'
 import type { McapFrame } from '../types/electron-api'
 
@@ -49,9 +49,6 @@ export function useReplay(): ReplayState {
     () => (currentControls ? controlsToHeld(currentControls) : EMPTY_HELD),
     [currentControls]
   )
-
-  useEffect(() => { framesRef.current = frames }, [frames])
-  useEffect(() => { indexRef.current = currentIndex }, [currentIndex])
 
   const stopPlayback = useCallback(() => {
     if (intervalRef.current) {
