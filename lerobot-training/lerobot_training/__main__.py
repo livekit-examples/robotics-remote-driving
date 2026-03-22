@@ -11,8 +11,8 @@ def cli():
     )
     parser.add_argument(
         "command",
-        choices=["convert", "train", "infer"],
-        help="convert: MCAP → LeRobot dataset, train: train a policy, infer: run policy over LiveKit",
+        choices=["convert", "train", "infer", "upload"],
+        help="convert: MCAP → dataset, train: train policy, infer: run over LiveKit, upload: push to HF Hub",
     )
     args, remaining = parser.parse_known_args()
 
@@ -28,6 +28,9 @@ def cli():
     elif args.command == "infer":
         from lerobot_training.infer import cli as infer_cli
         infer_cli()
+    elif args.command == "upload":
+        from lerobot_training.upload import cli as upload_cli
+        upload_cli()
 
 
 if __name__ == "__main__":
