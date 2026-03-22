@@ -1,189 +1,172 @@
 # Pico Driving
 
-Remote control system for an RC vehicle using a Raspberry Pi Pico as a signal spoof for a physical remote with active-low buttons. Supports direct USB control, low-latency remote driving over LiveKit with a live camera feed, and AI-powered autonomous driving via voice commands.
+Remote-control an RC car over LiveKit, record driving data, train a neural network, and let it drive autonomously.
+
+## Quick Start
+
+```sh
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone and enter the project
+git clone <repo-url> && cd robotics-driving-example
+
+# Copy env template and fill in your LiveKit credentials
+cp .env.example .env.local
+```
+
+### 1. Drive the car
+
+**On the Raspberry Pi** (connected to Pico + camera):
+
+```sh
+uv run local-bridge
+```
+
+**On your laptop** — generate a token and open the GUI:
+
+```sh
+uv run token-creator
+# Copy the URL and Token into the app
+
+cd remote-operator
+npm install && npm run dev
+```
+
+Use WASD to drive, Tab for speed, Space for brake.
+
+### 2. Record a dataset
+
+In the remote-operator app, click **Record**, drive around, click **Stop**, and save the `.mcap` file. Repeat for multiple episodes.
+
+### 3. Convert to LeRobot format
+
+```sh
+uv run python -m lerobot_training convert \
+  --input episodes/*.mcap \
+  --output ./dataset
+```
+
+### 4. Train a policy
+
+```sh
+uv run python -m lerobot_training train \
+  --dataset ./dataset \
+  --policy act \
+  --steps 50000
+```
+
+### 5. Let it drive
+
+```sh
+uv run python -m lerobot_training infer \
+  --checkpoint ./outputs/train/checkpoints/last/pretrained_model
+```
+
+### 6. Upload dataset to HuggingFace (optional)
+
+```sh
+uv run python -m lerobot_training upload \
+  --dataset ./dataset \
+  --repo-id yourname/rc-car-driving
+```
+
+---
 
 ## Architecture
 
 ```
-[Laptop / Cloud]                        [Raspberry Pi]                    [Pico]
-remote-controller/                      local-bridge/                     pico-firmware/
-  keyboard → data channel ──────────→     data channel → serial ──────→    GPIO open-drain
-  pygame   ← video track  ←────────────    camera → video track            → remote buttons
-                     (LiveKit Room)
-remote-agent/
-  AI voice ↔ audio tracks ↔──────────     mic / speaker ↔ audio tracks
-  tools   → data channel ──────────→
-           ← video track  ←────────────
-```
+[Laptop]                            [Raspberry Pi]                [Pico]
+remote-operator/ (Electron)         local-bridge/                 pico-firmware/
+  WASD → data channel ──────────→     data channel → serial ──→    GPIO → remote buttons
+  video ← video track ←────────────    camera → video track
+  record → .mcap files
 
-For local testing without LiveKit or a camera:
+remote-agent/ (AI voice)
+  voice ↔ audio tracks ↔──────────     mic / speaker ↔ audio
+  tools → data channel ──────────→
 
-```
-[Laptop]                    [Pico]
-local-controller/           pico-firmware/
-  keyboard → serial ────→    GPIO open-drain → remote buttons
+lerobot-training/
+  .mcap → LeRobot dataset → train policy → infer over LiveKit
 ```
 
 ## Components
 
-| Directory | Runs on | Description |
-|---|---|---|
-| `car-protocol/` | (shared library) | Shared protocol constants and helpers — button pin IDs, serial encoding, LiveKit data channel command builders |
-| `pico-firmware/` | Raspberry Pi Pico | Receives single-byte serial commands and drives 6 GPIO lines as open-drain outputs to simulate button presses on the physical remote |
-| `local-bridge/` | Raspberry Pi | Connects to LiveKit, publishes camera video and microphone audio, plays agent audio through the speaker, receives control commands via data channel, and forwards them to the Pico over USB serial |
-| `remote-controller/` | Laptop | Connects to LiveKit, displays the live camera stream, and sends keyboard commands over the data channel |
-| `remote-agent/` | Laptop / Cloud | AI voice agent that sees through the car's camera and drives via function-calling tools, powered by Gemini Live |
-| `local-controller/` | Laptop | Standalone controller that drives the Pico directly over USB serial with a pygame keyboard UI (no LiveKit or camera needed) |
+| Package | Description |
+|---------|-------------|
+| `remote-operator/` | Electron + React teleop GUI with MCAP recording and replay |
+| `local-bridge/` | Raspberry Pi: streams camera, bridges LiveKit commands to Pico serial |
+| `remote-agent/` | AI voice agent (Gemini Live) that drives via function tools |
+| `remote-controller/` | Pygame keyboard controller (lightweight alternative to remote-operator) |
+| `local-controller/` | Direct USB serial controller, no LiveKit needed |
+| `token-creator/` | Generate LiveKit access tokens |
+| `lerobot-training/` | MCAP conversion, policy training (ACT/Diffusion), LiveKit inference |
+| `car-protocol/` | Shared library: button pin IDs, serial encoding, data channel commands |
+| `pico-firmware/` | RP2040 firmware: serial → GPIO open-drain to simulate remote buttons |
 
-## Project Structure
-
-This is a [uv workspace](https://docs.astral.sh/uv/concepts/workspaces/) with a shared `car-protocol` library and four application packages:
-
-```
-car-protocol/car_protocol/      # Shared protocol (zero external deps)
-    buttons.py                  #   Pin IDs, names, mappings
-    serial.py                   #   Serial encoding + port detection
-    commands.py                 #   LiveKit data channel command builders
-
-local-controller/local_controller/
-    main.py                     #   Pygame event loop + serial I/O
-    ui.py                       #   Button status rendering
-
-local-bridge/local_bridge/
-    main.py                     #   Room connect + orchestration
-    audio.py                    #   AudioBridge — mic publish + agent speaker
-    video.py                    #   VideoBridge — OpenCV capture → LiveKit video
-    control.py                  #   DataBridge — data channel → serial + keepalive
-
-remote-controller/remote_controller/
-    main.py                     #   Room connect + pygame event loop
-    video.py                    #   LiveKit video stream receiver
-    ui.py                       #   Overlay rendering
-
-remote-agent/remote_agent/
-    main.py                     #   AgentServer setup + entrypoint
-    car_agent.py                #   CarAgent class with function tools
-```
+All Python packages are runnable via `uv run <name> --help`.
 
 ## Hardware
 
 - **Raspberry Pi Pico** (RP2040) — GPIO 16–21 wired to 6 buttons on the RC remote
-  - Pins configured as open-drain: `OUTPUT` = pull line low (press), `INPUT` = high-Z (release)
-- **Raspberry Pi** (any model with USB + camera) — runs the local bridge
-- **USB cable** connecting the Pi to the Pico
-
-### GPIO Pin Mapping
-
-| GPIO | Button |
-|------|--------|
-| 16   | UP     |
-| 17   | DOWN   |
-| 18   | LEFT   |
-| 19   | RIGHT  |
-| 20   | SPEED  |
-| 21   | BRAKE  |
-
-## Serial Protocol
-
-Single-byte binary commands at 115200 baud:
-
-| Byte | Meaning |
-|------|---------|
-| `0x00` | Release all buttons |
-| `0x10`–`0x15` (bit 7 = 0) | Press button on GPIO pin (bits 0–6) |
-| `0x90`–`0x95` (bit 7 = 1) | Release button on GPIO pin (bits 0–6) |
-
-The Pico has a 500ms watchdog — if no command is received within 500ms, all buttons are released. The local bridge sends keepalive presses every 300ms to prevent this.
+- **Raspberry Pi** (any model with USB + camera) — runs local-bridge
+- **USB cable** connecting Pi to Pico
 
 ## Setup
 
 ### Prerequisites
 
 - [uv](https://github.com/astral-sh/uv) — Python package manager
-- [PlatformIO](https://platformio.org/) — for building and flashing the Pico firmware
-- A LiveKit server (Cloud or self-hosted) — only needed for remote driving
+- [Node.js](https://nodejs.org/) — for remote-operator (Electron app)
+- [PlatformIO](https://platformio.org/) — for Pico firmware
+- [ffmpeg](https://ffmpeg.org/) — for video encoding during dataset conversion
+- A [LiveKit](https://livekit.io/) server (Cloud or self-hosted)
 
 ### Flash the Pico
 
 ```sh
-cd pico-firmware
-pio run -t upload
+cd pico-firmware && pio run -t upload
 ```
-
-Or copy the built `pico-firmware/.pio/build/pico/firmware.uf2` to the Pico in BOOTSEL mode.
 
 ### Configure LiveKit
 
 ```sh
 cp .env.example .env.local
-# Edit .env.local with your LiveKit credentials
 ```
 
 | Variable | Description |
-|---|---|
-| `LIVEKIT_URL` | LiveKit server URL |
+|----------|-------------|
+| `LIVEKIT_URL` | LiveKit server URL (`wss://...`) |
 | `LIVEKIT_API_KEY` | API key |
 | `LIVEKIT_API_SECRET` | API secret |
 | `LIVEKIT_ROOM` | Room name (default: `pico-driving`) |
 
-## Usage
+## Controls
 
-### Remote Driving (over LiveKit)
+| Key | Action |
+|-----|--------|
+| W | Forward |
+| S | Backward |
+| A | Left |
+| D | Right |
+| Tab | Speed boost |
+| Space | Brake |
+| Esc | Quit |
 
-**On the Raspberry Pi** — start the local bridge to stream the camera and bridge commands to the Pico:
-
-```sh
-cd local-bridge
-uv sync
-uv run python -m local_bridge
-```
-
-Set `SERIAL_PORT` env var to override auto-detection (default: `/dev/ttyACM*`).
-
-**On your laptop** — start the controller to view the stream and drive:
+## CLI Reference
 
 ```sh
-cd remote-controller
-uv sync
-uv run python -m remote_controller
+uv run token-creator                    # Generate a LiveKit token
+uv run token-creator --agent car-agent  # Generate token + dispatch AI agent
+uv run local-bridge                     # Start Pi bridge
+uv run local-bridge --agent car-agent   # Start bridge + dispatch agent
+uv run remote-controller                # Pygame controller
+uv run remote-agent dev                 # AI voice agent
+uv run local-controller                 # Direct USB control (no LiveKit)
+
+# Dataset pipeline
+uv run python -m lerobot_training convert  --input *.mcap --output ./dataset
+uv run python -m lerobot_training train    --dataset ./dataset --policy act
+uv run python -m lerobot_training infer    --checkpoint ./outputs/.../pretrained_model
+uv run python -m lerobot_training upload   --dataset ./dataset --repo-id user/name
 ```
-
-### AI Agent (over LiveKit)
-
-Start the AI voice agent that sees through the car's camera and drives via voice commands:
-
-```sh
-cd remote-agent
-uv sync
-uv run python -m remote_agent dev
-```
-
-The agent uses Gemini Live for native audio/video understanding and exposes driving controls as function tools.
-
-### Direct USB Control (no LiveKit)
-
-Connect the Pico directly to your laptop and run:
-
-```sh
-cd local-controller
-uv sync
-uv run local-controller
-```
-
-Pass a serial port as an argument to override auto-detection:
-
-```sh
-uv run local-controller /dev/tty.usbmodem1234
-```
-
-### Controls
-
-| Key   | Button |
-|-------|--------|
-| W     | UP     |
-| S     | DOWN   |
-| A     | LEFT   |
-| D     | RIGHT  |
-| Tab   | SPEED  |
-| Space | BRAKE  |
-| Esc   | Quit   |
