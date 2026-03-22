@@ -4,6 +4,8 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { type ControlState } from './types'
 
+// --- File-backed writable for McapWriter ---
+
 class FileHandleWritable implements IWritable {
   private handle: FileHandle
   private _position = 0n
@@ -22,69 +24,73 @@ class FileHandleWritable implements IWritable {
   }
 }
 
+// --- MCAP schema/channel setup ---
+
+const CONTROLS_SCHEMA = JSON.stringify({
+  type: 'object',
+  properties: {
+    w: { type: 'boolean' },
+    a: { type: 'boolean' },
+    s: { type: 'boolean' },
+    d: { type: 'boolean' },
+    speed: { type: 'boolean' },
+    brake: { type: 'boolean' },
+  },
+})
+
+async function registerChannels(writer: McapWriter) {
+  const cameraSchema = await writer.registerSchema({
+    name: 'jpeg_frame',
+    encoding: 'raw',
+    data: new Uint8Array(0),
+  })
+  const controlsSchema = await writer.registerSchema({
+    name: 'control_state',
+    encoding: 'jsonschema',
+    data: new TextEncoder().encode(CONTROLS_SCHEMA),
+  })
+
+  const camera = await writer.registerChannel({
+    topic: '/camera',
+    schemaId: cameraSchema,
+    messageEncoding: 'raw',
+    metadata: new Map(),
+  })
+  const controls = await writer.registerChannel({
+    topic: '/controls',
+    schemaId: controlsSchema,
+    messageEncoding: 'json',
+    metadata: new Map(),
+  })
+
+  return { camera, controls }
+}
+
+// --- Recorder ---
+
 export class McapRecorder {
   private writer: McapWriter | null = null
   private fileHandle: FileHandle | null = null
-  private tempPath: string = ''
-  private cameraChannelId = 0
-  private controlsChannelId = 0
-  private startTime: bigint = 0n
+  private tempPath = ''
+  private channelIds = { camera: 0, controls: 0 }
+  private startTime = 0n
   private _frameCount = 0
   private writeQueue: Promise<void> = Promise.resolve()
 
-  get frameCount(): number {
-    return this._frameCount
-  }
-
-  get isRecording(): boolean {
-    return this.writer !== null
-  }
+  get frameCount() { return this._frameCount }
+  get isRecording() { return this.writer !== null }
 
   async start(): Promise<void> {
     this.tempPath = join(tmpdir(), `recording_${Date.now()}.mcap`)
     this.fileHandle = await open(this.tempPath, 'w')
-    const writable = new FileHandleWritable(this.fileHandle)
 
-    this.writer = new McapWriter({ writable, useStatistics: true, useChunks: true })
+    this.writer = new McapWriter({
+      writable: new FileHandleWritable(this.fileHandle),
+      useStatistics: true,
+      useChunks: true,
+    })
     await this.writer.start({ library: 'remote-operator', profile: '' })
-
-    const cameraSchemaId = await this.writer.registerSchema({
-      name: 'jpeg_frame',
-      encoding: 'raw',
-      data: new Uint8Array(0)
-    })
-
-    const controlsSchemaData = JSON.stringify({
-      type: 'object',
-      properties: {
-        w: { type: 'boolean' },
-        a: { type: 'boolean' },
-        s: { type: 'boolean' },
-        d: { type: 'boolean' },
-        speed: { type: 'boolean' },
-        brake: { type: 'boolean' }
-      }
-    })
-
-    const controlsSchemaId = await this.writer.registerSchema({
-      name: 'control_state',
-      encoding: 'jsonschema',
-      data: new TextEncoder().encode(controlsSchemaData)
-    })
-
-    this.cameraChannelId = await this.writer.registerChannel({
-      topic: '/camera',
-      schemaId: cameraSchemaId,
-      messageEncoding: 'raw',
-      metadata: new Map()
-    })
-
-    this.controlsChannelId = await this.writer.registerChannel({
-      topic: '/controls',
-      schemaId: controlsSchemaId,
-      messageEncoding: 'json',
-      metadata: new Map()
-    })
+    this.channelIds = await registerChannels(this.writer)
 
     this._frameCount = 0
     this.writeQueue = Promise.resolve()
@@ -95,35 +101,31 @@ export class McapRecorder {
     if (!this.writer) return
 
     const seq = this._frameCount
-    const now = process.hrtime.bigint() - this.startTime
-    const cameraData = new Uint8Array(jpegBuffer)
-    const controlData = new TextEncoder().encode(JSON.stringify(controls))
+    const ts = process.hrtime.bigint() - this.startTime
+    const jpeg = new Uint8Array(jpegBuffer)
+    const ctrl = new TextEncoder().encode(JSON.stringify(controls))
 
-    this.writeQueue = this.writeQueue.then(async () => {
-      if (!this.writer) return
-      await this.writer.addMessage({
-        channelId: this.cameraChannelId,
-        sequence: seq,
-        logTime: now,
-        publishTime: now,
-        data: cameraData
+    this.writeQueue = this.writeQueue
+      .then(async () => {
+        if (!this.writer) return
+        await this.writer.addMessage({
+          channelId: this.channelIds.camera,
+          sequence: seq, logTime: ts, publishTime: ts,
+          data: jpeg,
+        })
+        await this.writer.addMessage({
+          channelId: this.channelIds.controls,
+          sequence: seq, logTime: ts, publishTime: ts,
+          data: ctrl,
+        })
       })
-      await this.writer.addMessage({
-        channelId: this.controlsChannelId,
-        sequence: seq,
-        logTime: now,
-        publishTime: now,
-        data: controlData
-      })
-    })
+      .catch(() => {}) // prevent one failed write from killing the chain
 
     this._frameCount++
   }
 
   async stop(): Promise<Uint8Array> {
-    if (!this.writer || !this.fileHandle) {
-      throw new Error('Not recording')
-    }
+    if (!this.writer || !this.fileHandle) throw new Error('Not recording')
 
     await this.writeQueue
     await this.writer.end()
@@ -134,7 +136,6 @@ export class McapRecorder {
 
     this.writer = null
     this.fileHandle = null
-
     return new Uint8Array(buffer)
   }
 }

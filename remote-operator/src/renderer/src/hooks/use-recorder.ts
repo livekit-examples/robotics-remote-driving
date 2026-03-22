@@ -1,6 +1,10 @@
 import { useState, useCallback, useRef } from 'react'
 import type { ControlState } from '../lib/constants'
 
+const JPEG_QUALITY = 0.85
+const UI_UPDATE_INTERVAL = 250 // ms — throttle React re-renders for counters
+const DRAIN_TIMEOUT = 200 // ms — wait for in-flight toBlob callbacks before stop
+
 export interface RecorderState {
   isRecording: boolean
   frameCount: number
@@ -14,62 +18,75 @@ export function useRecorder(): RecorderState {
   const [isRecording, setIsRecording] = useState(false)
   const [frameCount, setFrameCount] = useState(0)
   const [elapsed, setElapsed] = useState(0)
-  const canvasRef = useRef(document.createElement('canvas'))
-  const frameCountRef = useRef(0)
-  const recordingRef = useRef(false)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const startTimeRef = useRef(0)
+
+  const canvas = useRef(document.createElement('canvas'))
+  const ctx = useRef<CanvasRenderingContext2D | null>(null)
+  const frames = useRef(0)
+  const recording = useRef(false)
+  const pending = useRef(false)
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const startedAt = useRef(0)
 
   const captureFrame = useCallback((videoEl: HTMLVideoElement, controls: ControlState) => {
-    const canvas = canvasRef.current
-    if (!canvas || !videoEl.videoWidth || !recordingRef.current) return
+    if (!videoEl.videoWidth || !recording.current || pending.current) return
 
-    canvas.width = videoEl.videoWidth
-    canvas.height = videoEl.videoHeight
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    // Resize canvas only when video resolution changes
+    const c = canvas.current
+    if (c.width !== videoEl.videoWidth || c.height !== videoEl.videoHeight) {
+      c.width = videoEl.videoWidth
+      c.height = videoEl.videoHeight
+      ctx.current = null
+    }
+    ctx.current ??= c.getContext('2d')
+    if (!ctx.current) return
 
-    // Snapshot controls at the same instant as drawImage
-    const snapshotControls = { ...controls }
+    // Snapshot controls + frame at the same instant
+    const snap = { ...controls }
+    pending.current = true
 
-    ctx.drawImage(videoEl, 0, 0)
-    canvas.toBlob(
+    ctx.current.drawImage(videoEl, 0, 0)
+    c.toBlob(
       (blob) => {
-        if (blob && recordingRef.current) {
-          blob.arrayBuffer().then((buf) => {
-            if (!recordingRef.current) return
-            window.electronAPI.sendFrame(new Uint8Array(buf), snapshotControls)
-            frameCountRef.current++
-            setFrameCount(frameCountRef.current)
-          })
+        if (!blob || !recording.current) {
+          pending.current = false
+          return
         }
+        blob.arrayBuffer().then((buf) => {
+          pending.current = false
+          if (!recording.current) return
+          window.electronAPI.sendFrame(new Uint8Array(buf), snap)
+          frames.current++
+        })
       },
       'image/jpeg',
-      0.85
+      JPEG_QUALITY,
     )
   }, [])
 
   const startRecording = useCallback(async () => {
     await window.electronAPI.startRecording()
-    frameCountRef.current = 0
+
+    frames.current = 0
+    pending.current = false
+    startedAt.current = Date.now()
+    recording.current = true
+
     setFrameCount(0)
     setElapsed(0)
-    startTimeRef.current = Date.now()
-    recordingRef.current = true
     setIsRecording(true)
 
-    timerRef.current = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000))
-    }, 1000)
+    timer.current = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt.current) / 1000))
+      setFrameCount(frames.current)
+    }, UI_UPDATE_INTERVAL)
   }, [])
 
   const stopRecording = useCallback(async () => {
-    recordingRef.current = false
+    recording.current = false
     setIsRecording(false)
-    if (timerRef.current) clearInterval(timerRef.current)
+    if (timer.current) clearInterval(timer.current)
 
-    // Wait for any in-flight toBlob/arrayBuffer callbacks to settle
-    await new Promise((r) => setTimeout(r, 200))
+    await new Promise((r) => setTimeout(r, DRAIN_TIMEOUT))
 
     const mcapData = await window.electronAPI.stopRecording()
     await window.electronAPI.saveFile(mcapData)

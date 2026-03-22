@@ -50,13 +50,15 @@ pnpm dev
 
 This starts the Electron app in development mode with hot reload.
 
-### Build for production
+### Build & package
+
+To create a distributable app (`.dmg` on macOS, `.exe` on Windows, `.AppImage` on Linux):
 
 ```sh
-pnpm build
+pnpm package
 ```
 
-The packaged app will be in the `out/` directory.
+The installer will be in `remote-operator/dist/`. Send the file to your friend — no Node.js or dev tools needed on their machine.
 
 ## Usage
 

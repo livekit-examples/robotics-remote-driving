@@ -2,6 +2,9 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { BUTTONS, type ControlState } from '../lib/constants'
 import type { McapFrame } from '../types/electron-api'
 
+const FRAME_INTERVAL = 33 // ms (~30fps)
+const EMPTY_HELD = new Set<number>()
+
 export interface ReplayState {
   frames: McapFrame[]
   currentIndex: number
@@ -19,8 +22,6 @@ export interface ReplayState {
   close: () => void
 }
 
-const EMPTY_HELD = new Set<number>()
-
 function controlsToHeld(c: ControlState): Set<number> {
   const s = new Set<number>()
   if (c.w) s.add(BUTTONS.UP)
@@ -37,56 +38,82 @@ export function useReplay(): ReplayState {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const indexRef = useRef(0)
-  const framesRef = useRef<McapFrame[]>([])
+
+  const raf = useRef(0)
+  const lastTime = useRef(0)
+  const idx = useRef(0)
+  const data = useRef<McapFrame[]>([])
 
   const isLoaded = frames.length > 0
   const totalFrames = frames.length
-  const currentControls = isLoaded ? frames[currentIndex]?.controls ?? null : null
+  const controls = isLoaded ? frames[currentIndex]?.controls ?? null : null
+  const held = useMemo(() => (controls ? controlsToHeld(controls) : EMPTY_HELD), [controls])
 
-  const held = useMemo(
-    () => (currentControls ? controlsToHeld(currentControls) : EMPTY_HELD),
-    [currentControls]
-  )
+  // --- Playback ---
 
   const stopPlayback = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
+    if (raf.current) cancelAnimationFrame(raf.current)
+    raf.current = 0
     setIsPlaying(false)
   }, [])
 
   const startPlayback = useCallback(() => {
-    if (framesRef.current.length === 0) return
+    if (data.current.length === 0) return
     stopPlayback()
     setIsPlaying(true)
+    lastTime.current = 0
 
-    intervalRef.current = setInterval(() => {
-      const next = indexRef.current + 1
-      if (next >= framesRef.current.length) {
-        stopPlayback()
-        return
+    const tick = (now: number) => {
+      if (!lastTime.current) lastTime.current = now
+
+      if (now - lastTime.current >= FRAME_INTERVAL) {
+        lastTime.current = now
+        const next = idx.current + 1
+        if (next >= data.current.length) { stopPlayback(); return }
+        idx.current = next
+        setCurrentIndex(next)
       }
-      indexRef.current = next
-      setCurrentIndex(next)
-    }, 33) // ~30fps
+      raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
   }, [stopPlayback])
 
-  const loadFrames = useCallback((data: McapFrame[]) => {
+  // --- Navigation ---
+
+  const seek = useCallback((index: number) => {
+    const clamped = Math.max(0, Math.min(index, data.current.length - 1))
+    idx.current = clamped
+    setCurrentIndex(clamped)
+  }, [])
+
+  const nextFrame = useCallback(() => { stopPlayback(); seek(idx.current + 1) }, [seek, stopPlayback])
+  const prevFrame = useCallback(() => { stopPlayback(); seek(idx.current - 1) }, [seek, stopPlayback])
+
+  const togglePlayback = useCallback(() => {
+    if (isPlaying) { stopPlayback(); return }
+    // Restart from beginning if at end
+    if (idx.current >= data.current.length - 1) {
+      idx.current = 0
+      setCurrentIndex(0)
+    }
+    startPlayback()
+  }, [isPlaying, startPlayback, stopPlayback])
+
+  // --- Loading ---
+
+  const loadFrames = useCallback((mcap: McapFrame[]) => {
     stopPlayback()
-    setFrames(data)
-    framesRef.current = data
+    data.current = mcap
+    idx.current = 0
+    setFrames(mcap)
     setCurrentIndex(0)
-    indexRef.current = 0
   }, [stopPlayback])
 
   const loadFile = useCallback(async () => {
     setIsLoading(true)
     try {
-      const data = await window.electronAPI.openMcap()
-      if (data) loadFrames(data)
+      const result = await window.electronAPI.openMcap()
+      if (result) loadFrames(result)
     } finally {
       setIsLoading(false)
     }
@@ -95,52 +122,21 @@ export function useReplay(): ReplayState {
   const loadFromDrop = useCallback(async (path: string) => {
     setIsLoading(true)
     try {
-      const data = await window.electronAPI.readMcap(path)
-      loadFrames(data)
+      loadFrames(await window.electronAPI.readMcap(path))
     } finally {
       setIsLoading(false)
     }
   }, [loadFrames])
 
-  const togglePlayback = useCallback(() => {
-    if (isPlaying) {
-      stopPlayback()
-    } else {
-      if (indexRef.current >= framesRef.current.length - 1) {
-        indexRef.current = 0
-        setCurrentIndex(0)
-      }
-      startPlayback()
-    }
-  }, [isPlaying, startPlayback, stopPlayback])
-
-  const seek = useCallback((index: number) => {
-    const clamped = Math.max(0, Math.min(index, framesRef.current.length - 1))
-    indexRef.current = clamped
-    setCurrentIndex(clamped)
-  }, [])
-
-  const nextFrame = useCallback(() => {
-    stopPlayback()
-    seek(indexRef.current + 1)
-  }, [seek, stopPlayback])
-
-  const prevFrame = useCallback(() => {
-    stopPlayback()
-    seek(indexRef.current - 1)
-  }, [seek, stopPlayback])
-
   const close = useCallback(() => {
     stopPlayback()
+    data.current = []
+    idx.current = 0
     setFrames([])
-    framesRef.current = []
     setCurrentIndex(0)
-    indexRef.current = 0
   }, [stopPlayback])
 
-  useEffect(() => {
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
-  }, [])
+  useEffect(() => () => { if (raf.current) cancelAnimationFrame(raf.current) }, [])
 
   return {
     frames, currentIndex, isPlaying, isLoaded, isLoading, totalFrames, held,

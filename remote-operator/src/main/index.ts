@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc-handlers'
 
+app.setName('LiveKit Driving')
 const isDev = !app.isPackaged
 
 function createWindow(): BrowserWindow {

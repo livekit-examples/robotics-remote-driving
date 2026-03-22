@@ -5,7 +5,7 @@ import { useControls, heldToControls } from "./hooks/use-controls";
 import { useRecorder } from "./hooks/use-recorder";
 import { useReplay } from "./hooks/use-replay";
 import { ConnectBar } from "./components/connect-bar";
-import { VideoDisplay } from "./components/video-display";
+import { VideoDisplay, type VideoMeta } from "./components/video-display";
 import { KeyOverlay } from "./components/key-overlay";
 import { RecordButton } from "./components/record-button";
 import { ReplayView } from "./components/replay-view";
@@ -22,7 +22,11 @@ export default function App() {
   );
   const recorder = useRecorder();
   const replay = useReplay();
-  const controlState = useMemo(() => heldToControls(controls.held), [controls.held]);
+  const [videoMeta, setVideoMeta] = useState<VideoMeta | null>(null);
+  const controlState = useMemo(
+    () => heldToControls(controls.held),
+    [controls.held],
+  );
 
   const handleConnect = useCallback(
     (url: string, token: string) => livekit.connect(url, token),
@@ -73,6 +77,7 @@ export default function App() {
               isRecording={recorder.isRecording}
               controls={controlState}
               onFrame={recorder.captureFrame}
+              onMeta={setVideoMeta}
             />
             {livekit.connectionState === "connected" && (
               <KeyOverlay held={controls.held} />
@@ -103,6 +108,7 @@ export default function App() {
             activeTab === "teleop" ? recorder.frameCount : replay.currentIndex
           }
           rtt={livekit.rtt}
+          videoMeta={videoMeta}
           isReplayLoaded={replay.isLoaded}
           replayTotalFrames={replay.totalFrames}
           isReplayPlaying={replay.isPlaying}
