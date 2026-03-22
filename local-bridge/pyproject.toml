@@ -1,5 +1,5 @@
 [project]
-name = "pico-local-bridge"
+name = "local-bridge"
 version = "0.1.0"
 description = "LiveKit local bridge: streams camera and bridges control commands to Pico serial"
 requires-python = ">=3.10"

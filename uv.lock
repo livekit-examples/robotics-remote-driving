@@ -12,9 +12,9 @@ resolution-markers = [
 members = [
     "car-protocol",
     "livekit-controller",
+    "local-bridge",
     "local-controller",
     "pico-livekit-controller",
-    "pico-local-bridge",
     "remote-agent",
     "token-creator",
 ]
@@ -1334,6 +1334,34 @@ wheels = [
 ]
 
 [[package]]
+name = "local-bridge"
+version = "0.1.0"
+source = { virtual = "local-bridge" }
+dependencies = [
+    { name = "car-protocol" },
+    { name = "livekit" },
+    { name = "livekit-api" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "opencv-python" },
+    { name = "pyserial" },
+    { name = "python-dotenv" },
+    { name = "sounddevice" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "car-protocol", editable = "car-protocol" },
+    { name = "livekit", specifier = ">=0.18" },
+    { name = "livekit-api", specifier = ">=0.8" },
+    { name = "numpy", specifier = ">=1.24" },
+    { name = "opencv-python", specifier = ">=4.8" },
+    { name = "pyserial", specifier = ">=3.5" },
+    { name = "python-dotenv", specifier = ">=1.0" },
+    { name = "sounddevice", specifier = ">=0.4" },
+]
+
+[[package]]
 name = "local-controller"
 version = "0.1.0"
 source = { virtual = "local-controller" }
@@ -2029,34 +2057,6 @@ requires-dist = [
     { name = "opencv-python", specifier = ">=4.8" },
     { name = "pygame", specifier = ">=2.5" },
     { name = "python-dotenv", specifier = ">=1.0" },
-]
-
-[[package]]
-name = "pico-local-bridge"
-version = "0.1.0"
-source = { virtual = "local-bridge" }
-dependencies = [
-    { name = "car-protocol" },
-    { name = "livekit" },
-    { name = "livekit-api" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.4.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "opencv-python" },
-    { name = "pyserial" },
-    { name = "python-dotenv" },
-    { name = "sounddevice" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "car-protocol", editable = "car-protocol" },
-    { name = "livekit", specifier = ">=0.18" },
-    { name = "livekit-api", specifier = ">=0.8" },
-    { name = "numpy", specifier = ">=1.24" },
-    { name = "opencv-python", specifier = ">=4.8" },
-    { name = "pyserial", specifier = ">=3.5" },
-    { name = "python-dotenv", specifier = ">=1.0" },
-    { name = "sounddevice", specifier = ">=0.4" },
 ]
 
 [[package]]
