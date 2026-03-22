@@ -1,20 +1,13 @@
-#!/usr/bin/env python3
 """Convert MCAP episodes recorded by remote-operator to LeRobot v3.0 dataset format.
 
 Usage:
-    python mcap_to_lerobot.py --input episode_*.mcap --output ./my_dataset --fps 10
-
-Requires: pip install mcap Pillow pandas pyarrow
-Also requires ffmpeg in PATH for video encoding.
+    uv run lerobot-convert --input episode_*.mcap --output ./my_dataset
 """
 
 import argparse
 import io
 import json
-import shutil
-import struct
 import subprocess
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -24,8 +17,8 @@ import pyarrow.parquet as pq
 from mcap.reader import make_reader
 from PIL import Image
 
-
 ACTION_KEYS = ["w", "a", "s", "d", "speed", "brake"]
+ACTION_NAMES = ["forward", "backward", "left", "right", "speed", "brake"]
 
 
 def read_mcap_episode(mcap_path: Path) -> tuple[list[Image.Image], list[dict]]:
@@ -43,7 +36,6 @@ def read_mcap_episode(mcap_path: Path) -> tuple[list[Image.Image], list[dict]]:
                 ctrl = json.loads(message.data.decode())
                 controls.append(ctrl)
 
-    # Pair 1:1 — take the minimum length if somehow mismatched
     n = min(len(frames), len(controls))
     return frames[:n], controls[:n]
 
@@ -58,16 +50,11 @@ def encode_video(frames: list[Image.Image], output_path: Path, fps: int) -> None
 
     cmd = [
         "ffmpeg", "-y",
-        "-f", "rawvideo",
-        "-vcodec", "rawvideo",
-        "-s", f"{w}x{h}",
-        "-pix_fmt", "rgb24",
-        "-r", str(fps),
+        "-f", "rawvideo", "-vcodec", "rawvideo",
+        "-s", f"{w}x{h}", "-pix_fmt", "rgb24", "-r", str(fps),
         "-i", "-",
-        "-c:v", "libx264",
-        "-pix_fmt", "yuv420p",
-        "-crf", "23",
-        "-preset", "fast",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-crf", "23", "-preset", "fast",
         str(output_path),
     ]
 
@@ -90,23 +77,28 @@ def build_dataset(
     """Build a LeRobot v3.0 dataset from MCAP episodes."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    all_rows = []
-    episode_lengths = []
+    all_rows: list[dict] = []
+    episode_lengths: list[int] = []
     global_index = 0
+    frame_h, frame_w = 480, 640
 
     for ep_idx, mcap_path in enumerate(sorted(mcap_paths)):
         print(f"Processing episode {ep_idx}: {mcap_path.name}")
         frames, controls = read_mcap_episode(mcap_path)
 
         if not frames:
-            print(f"  Skipping (empty)")
+            print("  Skipping (empty)")
             continue
 
-        # Encode video
-        video_path = output_dir / "videos" / "observation.images.camera" / f"chunk-000/episode_{ep_idx:06d}.mp4"
+        if ep_idx == 0:
+            frame_h, frame_w = frames[0].height, frames[0].width
+
+        video_path = (
+            output_dir / "videos" / "observation.images.camera"
+            / f"chunk-000/episode_{ep_idx:06d}.mp4"
+        )
         encode_video(frames, video_path, fps)
 
-        # Build rows
         for frame_idx, ctrl in enumerate(controls):
             action = [float(ctrl.get(k, False)) for k in ACTION_KEYS]
             all_rows.append({
@@ -126,44 +118,38 @@ def build_dataset(
         print("No data to write.")
         return
 
-    # Write data parquet
+    # Data parquet
     data_dir = output_dir / "data" / "chunk-000"
     data_dir.mkdir(parents=True, exist_ok=True)
 
     df = pd.DataFrame(all_rows)
-    table = pa.table({
+    pq.write_table(pa.table({
         "index": pa.array(df["index"].tolist(), type=pa.int64()),
         "episode_index": pa.array(df["episode_index"].tolist(), type=pa.int64()),
         "frame_index": pa.array(df["frame_index"].tolist(), type=pa.int64()),
         "timestamp": pa.array(df["timestamp"].tolist(), type=pa.float32()),
         "action": pa.array(df["action"].tolist(), type=pa.list_(pa.float32())),
         "task_index": pa.array(df["task_index"].tolist(), type=pa.int64()),
-    })
-    pq.write_table(table, data_dir / "file-000.parquet")
+    }), data_dir / "file-000.parquet")
 
-    # Write episode parquets
-    ep_meta_dir = output_dir / "meta" / "episodes" / "chunk-000"
+    # Episode metadata
+    meta_dir = output_dir / "meta"
+    ep_meta_dir = meta_dir / "episodes" / "chunk-000"
     ep_meta_dir.mkdir(parents=True, exist_ok=True)
 
-    ep_rows = []
-    for ep_idx, length in enumerate(episode_lengths):
-        ep_rows.append({"episode_index": ep_idx, "length": length, "task_index": 0})
-    ep_table = pa.table({
-        "episode_index": pa.array([r["episode_index"] for r in ep_rows], type=pa.int64()),
-        "length": pa.array([r["length"] for r in ep_rows], type=pa.int64()),
-        "task_index": pa.array([r["task_index"] for r in ep_rows], type=pa.int64()),
-    })
-    pq.write_table(ep_table, ep_meta_dir / "file-000.parquet")
+    pq.write_table(pa.table({
+        "episode_index": pa.array(range(len(episode_lengths)), type=pa.int64()),
+        "length": pa.array(episode_lengths, type=pa.int64()),
+        "task_index": pa.array([0] * len(episode_lengths), type=pa.int64()),
+    }), ep_meta_dir / "file-000.parquet")
 
-    # Write tasks parquet
-    meta_dir = output_dir / "meta"
-    tasks_table = pa.table({
+    # Tasks
+    pq.write_table(pa.table({
         "task_index": pa.array([0], type=pa.int64()),
         "task": pa.array([task], type=pa.string()),
-    })
-    pq.write_table(tasks_table, meta_dir / "tasks.parquet")
+    }), meta_dir / "tasks.parquet")
 
-    # Compute stats
+    # Stats
     actions = np.array([r["action"] for r in all_rows], dtype=np.float32)
     stats = {
         "action": {
@@ -174,14 +160,7 @@ def build_dataset(
         }
     }
 
-    # Get frame size from first episode
-    h, w = 480, 640
-    if episode_lengths:
-        first_frames, _ = read_mcap_episode(sorted(mcap_paths)[0])
-        if first_frames:
-            h, w = first_frames[0].height, first_frames[0].width
-
-    # Write info.json
+    # info.json
     info = {
         "codebase_version": "v3.0",
         "robot_type": "rc_car",
@@ -191,18 +170,14 @@ def build_dataset(
         "features": {
             "observation.images.camera": {
                 "dtype": "video",
-                "shape": [h, w, 3],
+                "shape": [frame_h, frame_w, 3],
                 "names": ["height", "width", "channels"],
-                "info": {
-                    "codec": "libx264",
-                    "pix_fmt": "yuv420p",
-                    "is_depth_map": False,
-                },
+                "info": {"codec": "libx264", "pix_fmt": "yuv420p", "is_depth_map": False},
             },
             "action": {
                 "dtype": "float32",
                 "shape": [6],
-                "names": ["forward", "backward", "left", "right", "speed", "brake"],
+                "names": ACTION_NAMES,
             },
             "timestamp": {"dtype": "float32", "shape": [1]},
             "frame_index": {"dtype": "int64", "shape": [1]},
@@ -214,7 +189,6 @@ def build_dataset(
 
     with open(meta_dir / "info.json", "w") as f:
         json.dump(info, f, indent=2)
-
     with open(meta_dir / "stats.json", "w") as f:
         json.dump(stats, f, indent=2)
 
@@ -223,8 +197,10 @@ def build_dataset(
     print(f"  Total frames: {global_index}")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Convert MCAP episodes to LeRobot dataset")
+def cli():
+    parser = argparse.ArgumentParser(
+        description="Convert MCAP episodes to LeRobot v3.0 dataset"
+    )
     parser.add_argument("--input", nargs="+", required=True, help="MCAP file(s)")
     parser.add_argument("--output", required=True, help="Output dataset directory")
     parser.add_argument("--fps", type=int, default=10, help="Recording FPS (default: 10)")
@@ -240,4 +216,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    cli()

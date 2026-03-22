@@ -1,0 +1,22 @@
+[project]
+name = "lerobot-training"
+version = "0.1.0"
+description = "Convert MCAP episodes to LeRobot datasets, train policies, and run inference"
+requires-python = ">=3.10"
+dependencies = [
+    "lerobot>=0.1",
+    "mcap>=1.1",
+    "Pillow>=10.0",
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pyarrow>=14.0",
+    "torch>=2.0",
+    "livekit>=0.18",
+    "livekit-api>=0.8",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+lerobot-convert = "lerobot_training.convert:cli"
+lerobot-train-policy = "lerobot_training.train:cli"
+lerobot-infer = "lerobot_training.infer:cli"
