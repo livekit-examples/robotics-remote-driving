@@ -3,6 +3,24 @@ name = "livekit-controller"
 version = "0.1.0"
 description = "LiveKit remote control workspace for Pico driving"
 requires-python = ">=3.10"
+dependencies = [
+    "car-protocol",
+    "local-bridge",
+    "local-controller",
+    "remote-controller",
+    "remote-agent",
+    "token-creator",
+    "lerobot-training",
+]
+
+[tool.uv.sources]
+car-protocol = { workspace = true }
+local-bridge = { workspace = true }
+local-controller = { workspace = true }
+remote-controller = { workspace = true }
+remote-agent = { workspace = true }
+token-creator = { workspace = true }
+lerobot-training = { workspace = true }
 
 [tool.uv.workspace]
 members = [
