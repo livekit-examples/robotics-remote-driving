@@ -15,8 +15,3 @@ dependencies = [
     "livekit-api>=0.8",
     "python-dotenv>=1.0",
 ]
-
-[project.scripts]
-lerobot-convert = "lerobot_training.convert:cli"
-lerobot-train-policy = "lerobot_training.train:cli"
-lerobot-infer = "lerobot_training.infer:cli"
