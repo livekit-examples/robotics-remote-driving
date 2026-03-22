@@ -1,0 +1,23 @@
+[project]
+name = "remote-ai-operator"
+version = "0.1.0"
+description = "AI-driven remote operator: a trained LeRobot policy drives the car over LiveKit"
+requires-python = ">=3.10"
+dependencies = [
+    "livekit>=0.18",
+    "livekit-api>=0.8",
+    "opencv-python>=4.8",
+    "python-dotenv>=1.0",
+    "numpy>=1.24",
+    "pygame>=2.5",
+    "torch>=2.0",
+    "Pillow>=10.0",
+    "lerobot>=0.1",
+    "car-protocol",
+]
+
+[project.scripts]
+remote-ai-operator = "remote_ai_operator.__main__:cli"
+
+[tool.uv.sources]
+car-protocol = { workspace = true }
