@@ -1,0 +1,9 @@
+[project]
+name = "token-creator"
+version = "0.1.0"
+description = "Generate LiveKit access tokens for the remote-operator app"
+requires-python = ">=3.10"
+dependencies = [
+    "livekit-api>=0.8",
+    "python-dotenv>=1.0",
+]

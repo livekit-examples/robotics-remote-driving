@@ -11,4 +11,5 @@ members = [
     "remote-controller",
     "local-controller",
     "remote-agent",
+    "token-creator",
 ]
