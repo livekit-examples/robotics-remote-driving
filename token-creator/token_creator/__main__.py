@@ -1,11 +1,12 @@
-"""Entry point for `python -m token_creator`."""
+"""Entry point for `token-creator` CLI and `python -m token_creator`."""
 
 import argparse
 import asyncio
 
 from token_creator.main import main
 
-if __name__ == "__main__":
+
+def cli():
     parser = argparse.ArgumentParser(description="Generate a LiveKit access token")
     parser.add_argument(
         "--identity",
@@ -25,3 +26,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     asyncio.run(main(identity=args.identity, agent_name=args.agent, room_override=args.room))
+
+
+if __name__ == "__main__":
+    cli()

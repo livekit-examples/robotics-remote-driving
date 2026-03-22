@@ -14,5 +14,8 @@ dependencies = [
     "car-protocol",
 ]
 
+[project.scripts]
+local-bridge = "local_bridge.__main__:cli"
+
 [tool.uv.sources]
 car-protocol = { workspace = true }

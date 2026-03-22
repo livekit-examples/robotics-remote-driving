@@ -15,5 +15,8 @@ dependencies = [
     "car-protocol",
 ]
 
+[project.scripts]
+remote-agent = "remote_agent.__main__:cli_main"
+
 [tool.uv.sources]
 car-protocol = { workspace = true }

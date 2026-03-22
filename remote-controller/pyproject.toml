@@ -1,5 +1,5 @@
 [project]
-name = "pico-livekit-controller"
+name = "remote-controller"
 version = "0.1.0"
 description = "LiveKit remote controller: keyboard input + video viewer for Pico driving"
 requires-python = ">=3.10"
@@ -12,6 +12,9 @@ dependencies = [
     "pygame>=2.5",
     "car-protocol",
 ]
+
+[project.scripts]
+remote-controller = "remote_controller.__main__:cli"
 
 [tool.uv.sources]
 car-protocol = { workspace = true }

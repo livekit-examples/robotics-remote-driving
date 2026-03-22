@@ -7,3 +7,6 @@ dependencies = [
     "livekit-api>=0.8",
     "python-dotenv>=1.0",
 ]
+
+[project.scripts]
+token-creator = "token_creator.__main__:cli"

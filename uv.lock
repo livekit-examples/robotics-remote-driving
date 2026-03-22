@@ -14,8 +14,8 @@ members = [
     "livekit-controller",
     "local-bridge",
     "local-controller",
-    "pico-livekit-controller",
     "remote-agent",
+    "remote-controller",
     "token-creator",
 ]
 
@@ -2034,32 +2034,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pico-livekit-controller"
-version = "0.1.0"
-source = { virtual = "remote-controller" }
-dependencies = [
-    { name = "car-protocol" },
-    { name = "livekit" },
-    { name = "livekit-api" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.4.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "opencv-python" },
-    { name = "pygame" },
-    { name = "python-dotenv" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "car-protocol", editable = "car-protocol" },
-    { name = "livekit", specifier = ">=0.18" },
-    { name = "livekit-api", specifier = ">=0.8" },
-    { name = "numpy", specifier = ">=1.24" },
-    { name = "opencv-python", specifier = ">=4.8" },
-    { name = "pygame", specifier = ">=2.5" },
-    { name = "python-dotenv", specifier = ">=1.0" },
-]
-
-[[package]]
 name = "pillow"
 version = "12.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2782,6 +2756,32 @@ requires-dist = [
     { name = "livekit-plugins-google", specifier = ">=1.0" },
     { name = "livekit-plugins-silero", specifier = ">=1.0" },
     { name = "livekit-plugins-turn-detector", specifier = ">=1.0" },
+    { name = "python-dotenv", specifier = ">=1.0" },
+]
+
+[[package]]
+name = "remote-controller"
+version = "0.1.0"
+source = { virtual = "remote-controller" }
+dependencies = [
+    { name = "car-protocol" },
+    { name = "livekit" },
+    { name = "livekit-api" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "opencv-python" },
+    { name = "pygame" },
+    { name = "python-dotenv" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "car-protocol", editable = "car-protocol" },
+    { name = "livekit", specifier = ">=0.18" },
+    { name = "livekit-api", specifier = ">=0.8" },
+    { name = "numpy", specifier = ">=1.24" },
+    { name = "opencv-python", specifier = ">=4.8" },
+    { name = "pygame", specifier = ">=2.5" },
     { name = "python-dotenv", specifier = ">=1.0" },
 ]
 
