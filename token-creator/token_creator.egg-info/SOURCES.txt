@@ -1,9 +1,0 @@
-pyproject.toml
-token_creator/__init__.py
-token_creator/__main__.py
-token_creator/main.py
-token_creator.egg-info/PKG-INFO
-token_creator.egg-info/SOURCES.txt
-token_creator.egg-info/dependency_links.txt
-token_creator.egg-info/requires.txt
-token_creator.egg-info/top_level.txt
