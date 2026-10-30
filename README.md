@@ -1,3 +1,6 @@
+> [!WARNING]
+> This example is archived and no longer maintained. For current examples, see [LiveKit Agents examples](https://github.com/livekit/agents/tree/main/examples) and [agent-starter-react](https://github.com/livekit-examples/agent-starter-react).
+
 # Pico Driving
 
 Remote-control an RC car over LiveKit, record driving data, train a neural network, and let it drive autonomously.
